@@ -54,10 +54,17 @@ def download_from_zenodo(url: str, local_filename: str) -> bool:
         return False
 
 
+def _cache_dir() -> str:
+    xdg = os.environ.get("XDG_CACHE_HOME", "")
+    base = xdg if xdg else os.path.join(os.path.expanduser("~"), ".cache")
+    return os.path.join(base, ".JAXNRSur")
+
+
 def load_data(url: str, local_filename: str) -> h5py.File:
     """Load an HDF5 file from cache or download it from Zenodo if not present.
 
-    The file is cached in the user's home directory under .jaxNRSur.
+    The file is cached under ``$XDG_CACHE_HOME/jaxnrsur`` (falls back to
+    ``~/.cache/jaxnrsur`` when the env variable is not set).
 
     Args:
         url (str): The URL to download the file from if not cached.
@@ -69,21 +76,19 @@ def load_data(url: str, local_filename: str) -> h5py.File:
     Raises:
         KeyError: If the file cannot be downloaded from Zenodo.
     """
-    home_directory = os.environ["HOME"]
-    os.makedirs(home_directory + "/.jaxNRSur", exist_ok=True)
+    cache = _cache_dir()
+    os.makedirs(cache, exist_ok=True)
+    local_path = os.path.join(cache, local_filename)
     try:
         print("Try loading file from cache")
-        data = h5py.File(home_directory + "/.jaxNRSur/" + local_filename, "r")
+        data = h5py.File(local_path, "r")
         print("Cache found and loading data")
     except FileNotFoundError:
         print("Cache not found, downloading from Zenodo")
-        downloaded = download_from_zenodo(
-            url,
-            home_directory + "/.jaxNRSur/" + local_filename,
-        )
+        downloaded = download_from_zenodo(url, local_path)
         if downloaded:
             print("Download successful, loading data")
-            data = h5py.File(home_directory + "/.jaxNRSur/" + local_filename, "r")
+            data = h5py.File(local_path, "r")
         else:
             raise KeyError("Cannot download data from zenodo")
     return data

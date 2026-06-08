@@ -1,6 +1,6 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version("JaxNRSur")
+__version__ = importlib.metadata.version("JAXNRSur")
 
 import jax.numpy as jnp
 from jaxtyping import Array, Float
@@ -30,11 +30,12 @@ class WaveformModel(eqx.Module):
         params: Float[Array, " n_param"],
         theta: Float,
         phi: Float,
+        omega_lower: Float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         raise NotImplementedError
 
 
-class JaxNRSur:
+class JAXNRSur:
     model: WaveformModel
     frequency: Float[Array, " n_freq"]
     segment_length: Optional[float] = None
@@ -76,9 +77,11 @@ class JaxNRSur:
         # is chosen such that it is 0 at the start, as well as zero
         # first and second derivative at the start, and is 1 and zero
         # derivatives at the end.
-        Tcoorb = self.model.data.sur_time[-1] - self.model.data.sur_time[0]
+        # Use the duration of the requested time array, not the full surrogate
+        # time range (which can span hundreds of millions of M for hybrid models).
+        Tcoorb = t[-1] - t[0]
 
-        window_start = jnp.max(jnp.array([t[0], self.model.data.sur_time[0]]))
+        window_start = t[0]
         window_end = window_start + self.alpha_window * Tcoorb
 
         x = (t - window_start) / (window_end - window_start)
@@ -100,24 +103,33 @@ class JaxNRSur:
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_param"],
+        f_lower: float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Get the waveform in the time domain in SI units.
+
+        Args:
+            time: Time array in SI seconds.
+            params: [mtot, dist_mpc, theta, phi, ...model_params]
+            f_lower: Lower GW frequency cutoff in Hz. Signal before the orbital
+                frequency reaches pi*f_lower is zeroed. 0 = no truncation (default).
         """
-        # get scaling parameters
         mtot = params[0]
         dist_mpc = params[1]
         theta = params[2]
         phi = params[3]
 
-        # form time array with desired sampling rate and duration
-        # N = int(seglen*srate)
-        # time = jnp.arange(N)/srate - seglen + 2
+        # Convert f_lower (Hz) to geometric orbital angular velocity (rad/M)
+        M_s = mtot * RSUN_SI / C_SI  # total mass in seconds
+        omega_lower = jnp.pi * f_lower * M_s
 
-        # evaluate the surrogate over the equivalent geometric time
         time_m = time * C_SI / RSUN_SI / mtot
         hrM_p, hrM_c = self.model.get_waveform_geometric(
-            time_m, jnp.array(params[4:]), theta, phi
+            time_m,
+            jnp.array(params[4:]),
+            theta,
+            phi,
+            omega_lower=omega_lower,
         )
 
         if self.alpha_window > 0:
@@ -136,15 +148,15 @@ class JaxNRSur:
         """
 
         # form time array with desired sampling rate and duration
-        assert (
-            self.segment_length is not None
-        ), "segment_length must be set for frequency domain waveform generation"
-        assert (
-            self.sampling_rate is not None
-        ), "sampling_rate must be set for frequency domain waveform generation"
+        assert self.segment_length is not None, (
+            "segment_length must be set for frequency domain waveform generation"
+        )
+        assert self.sampling_rate is not None, (
+            "sampling_rate must be set for frequency domain waveform generation"
+        )
         N = int(self.segment_length * self.sampling_rate)
         delta_t = 1.0 / self.sampling_rate
-        time = jnp.arange(N) * delta_t - self.segment_length + 2
+        time = jnp.arange(N) * delta_t - self.segment_length  # -T to 0 s, merger at end
 
         hp_td, hc_td = self.get_waveform_td(time, params)
 

@@ -946,7 +946,7 @@ class NRSur7dq4Model(WaveformModel):
             factor = jnp.where(
                 i1,
                 term1 * term2 * factorial_term,
-                jnp.zeros(R_A_prime.shape).astype(jnp.complexfloating),
+                jnp.zeros(R_A_prime.shape, dtype=jnp.complex128),
             )
 
             rho = jnp.arange(0, self.max_lm[0] + self.max_lm[1] + 1)
@@ -1020,7 +1020,7 @@ class NRSur7dq4Model(WaveformModel):
         # quaternions
         init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
         init_orb_phase: float = 0.0,
-    ) -> Complex[Array, "n_mode n_sample"]:
+    ) -> tuple[Complex[Array, "n_mode n_sample"], Float[Array, "n_sur_time 11"]]:
         """
         Generate all the waveform modes invidiually in the inertial frame.
 
@@ -1155,12 +1155,11 @@ class NRSur7dq4Model(WaveformModel):
         inertial_h_lms += jnp.sum(hlm_projed, axis=-1).T
 
         for idx in self.modelist_dict_extended.keys():
-            # Note the LAL convention for the phasing
             inertial_h_lms = inertial_h_lms.at[:, idx].set(
-                self.harmonics[idx](theta, jnp.pi / 2 - phi) * inertial_h_lms[:, idx]
+                self.harmonics[idx](theta, -phi) * inertial_h_lms[:, idx]
             )
 
-        return inertial_h_lms
+        return inertial_h_lms, Omega_interp
 
     def get_waveform_geometric(
         self,
@@ -1171,6 +1170,7 @@ class NRSur7dq4Model(WaveformModel):
         # quaternions
         init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
         init_orb_phase: float = 0.0,
+        omega_lower: Float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Get the combined waveform in the inertial frame for a given time array.
@@ -1185,13 +1185,15 @@ class NRSur7dq4Model(WaveformModel):
             init_quat (Float[Array, " n_quat"], optional): Initial quaternion.
             Defaults to [1.0, 0.0, 0.0, 0.0].
             init_orb_phase (float, optional): Initial orbital phase. Defaults to 0.
+            omega_lower (float, optional): Lower orbital angular velocity cutoff in geometric
+                units (rad/M). Samples before the surrogate reaches this frequency are zeroed.
+                Set to pi*f_lower*M_s in the caller. Defaults to 0.0 (no truncation).
 
         Returns:
             tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]
                 The plus and cross polarizations of the waveform in the inertial frame.
         """
-        # Get the inertial frame waveform and Omega_interp
-        h_lms = self.get_waveform_inertial_permode(
+        h_lms, Omega_interp = self.get_waveform_inertial_permode(
             params,
             theta=theta,
             phi=phi,
@@ -1199,17 +1201,20 @@ class NRSur7dq4Model(WaveformModel):
             init_orb_phase=init_orb_phase,
         )
 
-        # Sum along the N_modes axis with the spherical harmonics to generate strain as function of time
-
         h_re_per_mode = self.interp_vmap(self.data.sur_time, h_lms.real, time)
         h_im_per_mode = self.interp_vmap(self.data.sur_time, h_lms.imag, time)
 
-        # Interpolate real and imaginary parts to the requested time array
         h_re = jnp.sum(h_re_per_mode, axis=0)
         h_im = jnp.sum(h_im_per_mode, axis=0)
 
-        # Mask to ensure output is zero outside the model's time range
-        mask = (time >= self.data.sur_time[0]) * (time <= self.data.sur_time[-1])
+        # Find t_lower from the orbital frequency trajectory (Omega_interp[:, 4] = orb phase)
+        orb_freq = jnp.gradient(Omega_interp[:, 4], self.data.sur_time)
+        in_band = orb_freq >= omega_lower
+        t_lower_m = self.data.sur_time[jnp.argmax(in_band)]
+
+        # Use t_lower when omega_lower > 0, otherwise use surrogate start
+        t_start = jnp.where(omega_lower > 0, t_lower_m, self.data.sur_time[0])
+        mask = (time >= t_start) * (time <= self.data.sur_time[-1])
         hp = jnp.where(mask, h_re, 0.0)
         hc = jnp.where(mask, -h_im, 0.0)
 

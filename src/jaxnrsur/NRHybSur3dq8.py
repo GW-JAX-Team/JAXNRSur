@@ -11,6 +11,22 @@ from jaxtyping import Array, Float, Int
 import equinox as eqx
 
 
+def _map_params(params: Float[Array, " n_dim"]) -> Float[Array, " n_dim"]:
+    """Map physical [q, chi1z, chi2z] to surrogate training space [log(q), chiHat, chi_a].
+
+    NRHybSur3dq8 GP node functions were trained on these remapped parameters.
+    See gwsurrogate.new.nodeFunction.NRHybSur3dq8Fit for the reference implementation.
+    """
+    q, chi1z, chi2z = params[0], params[1], params[2]
+    eta = q / (1.0 + q) ** 2
+    chi_wtAvg = (q * chi1z + chi2z) / (1.0 + q)
+    chiHat = (chi_wtAvg - 38.0 * eta / 113.0 * (chi1z + chi2z)) / (
+        1.0 - 76.0 * eta / 113.0
+    )
+    chi_a = (chi1z - chi2z) / 2.0
+    return jnp.array([jnp.log(q), chiHat, chi_a])
+
+
 def get_T3_phase(q: float, t: Float[Array, " n"], t_ref: float = 1000.0) -> float:
     """
     Compute the T3 phase correction for the waveform model.
@@ -94,9 +110,9 @@ class NRHybSur3dq8DataLoader(eqx.Module):
                     except ValueError:
                         raise ValueError("GPR Fit info doesn't exist")
 
-                    assert isinstance(
-                        fit_data, h5py.Group
-                    ), "GPR Fit info is not a group"
+                    assert isinstance(fit_data, h5py.Group), (
+                        "GPR Fit info is not a group"
+                    )
                     res = h5Group_to_dict(fit_data)
                     node_predictor = EIMpredictor(res)
                     predictors.append(node_predictor)
@@ -342,26 +358,21 @@ class NRHybSur3dq8Model(WaveformModel):
         self,
         time: Float[Array, " n_samples"],
         params: Float[Array, " n_dim"],
-    ) -> Float[Array, " n_sample"]:
+    ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
-        Compute the (2,2) mode for the waveform.
+        Compute the (2,2) mode and its phase for the waveform.
 
-        Args:
-            time (Float[Array, " n_samples"]): Time grid.
-            params (Float[Array, " n_dim"]): Source parameters.
-
-        Returns:
-            Float[Array, " n_sample"]: Complex (2,2) mode data.
+        Returns (h22, phase_interp) where phase_interp is needed by
+        get_waveform_geometric to rotate coorbital modes to the inertial frame.
         """
-        # 22 mode has weird dict that making a specical function is easier.
         q = params[0]
-        params = params[None]
-        amp = self.get_eim(self.data.modes[self.mode_22_index]["amp"], params)
-        phase = -self.get_eim(self.data.modes[self.mode_22_index]["phase"], params)
+        mapped = _map_params(params)[None]  # EIM was trained on [log(q), chiHat, chi_a]
+        amp = self.get_eim(self.data.modes[self.mode_22_index]["amp"], mapped)
+        phase = -self.get_eim(self.data.modes[self.mode_22_index]["phase"], mapped)
         phase = phase + get_T3_phase(q, self.data.sur_time)  # type: ignore
         amp_interp = CubicSpline(self.data.sur_time, amp)(time)
         phase_interp = CubicSpline(self.data.sur_time, phase)(time)
-        return amp_interp * jnp.exp(1j * phase_interp)
+        return amp_interp * jnp.exp(1j * phase_interp), phase_interp
 
     def get_waveform_geometric(
         self,
@@ -369,6 +380,7 @@ class NRHybSur3dq8Model(WaveformModel):
         params: Float[Array, " n_dim"],
         theta: Float = 0.0,
         phi: Float = 0.0,
+        omega_lower: Float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Compute the geometric waveform (plus and cross polarizations) for given parameters.
@@ -386,29 +398,54 @@ class NRHybSur3dq8Model(WaveformModel):
         Returns:
             tuple: Plus and cross polarizations of the waveform.
         """
-        coeff = jnp.stack(jnp.array(self.get_multi_real_imag(self.mode_no22, params)))
+        mapped_params = _map_params(
+            params
+        )  # [log(q), chiHat, chi_a] for EIM evaluation
+        coeff = jnp.stack(
+            jnp.array(self.get_multi_real_imag(self.mode_no22, mapped_params))
+        )
         modes = eqx.filter_vmap(self.get_mode, in_axes=(0, 0, None))(
             coeff[:, 0], coeff[:, 1], time
         )
 
-        waveform = jnp.zeros_like(time, dtype=jnp.complex64)
+        waveform = jnp.zeros_like(time, dtype=jnp.complex128)
 
-        h22 = self.get_22_mode(time, params)
-        waveform += h22 * SpinWeightedSphericalHarmonics(-2, 2, 2)(theta, phi)
+        # get_22_mode returns (h22, phase_22).  phase_22 doubles as the orbital phase
+        # (×2) used to rotate coorbital modes into the inertial frame:
+        #   h_lm_inertial = h_coorb_lm * exp(-i·m·φ_orb)
+        # JAXNRSur convention: h22 = A·exp(+i·phase_22), gwsurrogate: A·exp(-i·φ_22),
+        # so phase_22 = -φ_22 and φ_orb = -phase_22/2, giving
+        #   h_lm_inertial = h_coorb_lm * exp(+i·m·phase_22/2).
+        h22, phase_22 = self.get_22_mode(time, params)
+        waveform += h22 * SpinWeightedSphericalHarmonics(-2, 2, 2)(theta, -phi)
         waveform += jnp.conj(h22) * SpinWeightedSphericalHarmonics(-2, 2, -2)(
-            theta, phi
+            theta, -phi
         )
 
         for i, harmonics in enumerate(self.harmonics):
-            waveform += modes[i] * harmonics(theta, phi)
+            m = self.m_mode[i]  # JAX scalar; int() would fail under JIT
+            # rotate coorbital → inertial frame before projection
+            h_lm = modes[i] * jnp.exp(1j * m * phase_22 / 2.0)
+            waveform += h_lm * harmonics(theta, -phi)
             waveform += (
                 self.negative_mode_prefactor[i]
-                * jnp.conj(modes[i])
-                * self.negative_harmonics[i](theta, phi)
+                * jnp.conj(h_lm)
+                * self.negative_harmonics[i](theta, -phi)
             )
 
-        # Mask to ensure output is zero outside the model's time range
-        mask = (time >= self.data.sur_time[0]) * (time <= self.data.sur_time[-1])
+        # Find t_lower from the 22-mode continuous GW phase (d(phase)/dt / 2 = orb freq)
+        # Re-compute phase on the full sur_time grid (needed for frequency mask).
+        mapped_p = _map_params(params)[None]
+        phase_sur = -self.get_eim(
+            self.data.modes[self.mode_22_index]["phase"], mapped_p
+        )
+        phase_sur = phase_sur + get_T3_phase(params[0], self.data.sur_time)  # type: ignore
+        orb_freq_grid = jnp.gradient(phase_sur, self.data.sur_time) / 2.0  # type: ignore[operator]
+        in_band = orb_freq_grid >= omega_lower
+        t_lower_m = self.data.sur_time[jnp.argmax(in_band)]
+        t_start = jnp.where(omega_lower > 0, t_lower_m, self.data.sur_time[0])
+
+        mask = (time >= t_start) * (time <= self.data.sur_time[-1])
         hp = jnp.where(mask, waveform.real, 0.0)
         hc = jnp.where(mask, -waveform.imag, 0.0)
         return hp, hc
