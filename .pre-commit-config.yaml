@@ -1,22 +1,26 @@
+ci:
+  autoupdate_branch: main
+  skip: [uv-lock, pyright]
+
 repos:
-  - repo: https://github.com/ambv/black
-    rev: 25.1.0
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.19
     hooks:
-    - id: black
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: 'v0.9.10'
+      - id: uv-lock
+        args: ["--upgrade"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.16
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: ["--fix"]
+        files: src/
+      - id: ruff-format
+        files: src/
+
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.327
+    rev: v1.1.410
     hooks:
-    - id: pyright
-      additional_dependencies: [beartype, einops, jax, jaxtyping, pytest, typing_extensions, equinox, lineax, h5py]
-  - repo: https://github.com/nbQA-dev/nbQA
-    rev: 1.9.1
-    hooks:
-    - id: nbqa-black
-      additional_dependencies: [ipython==8.12, black]
-    - id: nbqa-ruff-format
-      additional_dependencies: [ipython==8.12, ruff]
+      - id: pyright
+        files: src/
+        additional_dependencies: [beartype, jax, jaxtyping, equinox, lineax, h5py, typing_extensions]
