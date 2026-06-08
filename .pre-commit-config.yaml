@@ -23,4 +23,4 @@ repos:
     hooks:
       - id: pyright
         files: src/
-        additional_dependencies: [beartype, jax, jaxtyping, equinox, lineax, h5py, typing_extensions]
+        additional_dependencies: [beartype, jax, jaxtyping, equinox, lineax, h5py, typing_extensions, requests]

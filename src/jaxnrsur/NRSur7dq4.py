@@ -435,7 +435,7 @@ class NRSur7dq4Model(WaveformModel):
                 The waveform in the form of (h_plus, h_cross).
         """
         return self.get_waveform_geometric(
-            time, params, theta, phi, init_quat, init_orb_phase
+            time, params, theta, phi, init_quat=init_quat, init_orb_phase=init_orb_phase
         )
 
     def _get_coorb_params(
@@ -1167,10 +1167,10 @@ class NRSur7dq4Model(WaveformModel):
         params: Float[Array, " n_dim"],
         theta: Float = 0.0,
         phi: Float = 0.0,
-        # quaternions
+        omega_lower: Float = 0.0,
+        # NRSur7dq4-specific dynamics parameters
         init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
         init_orb_phase: float = 0.0,
-        omega_lower: Float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Get the combined waveform in the inertial frame for a given time array.
