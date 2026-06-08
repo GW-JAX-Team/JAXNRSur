@@ -1,0 +1,87 @@
+[project]
+site_name = "JAXNRSur"
+site_url = "https://gw-jax-team.github.io/JAXNRSur/latest/"
+site_description = "Numerical relativity surrogate waveforms in JAX"
+site_author = "GW JAX Team"
+repo_url = "https://github.com/GW-JAX-Team/JAXNRSur"
+repo_name = "GW-JAX-Team/JAXNRSur"
+
+extra_javascript = [
+    "javascripts/mathjax.js",
+    "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js",
+]
+
+nav = [
+    {"Home" = "index.md"},
+    {"Installation" = "installation.md"},
+    {"Quick Start" = "quickstart.md"},
+    {"Tutorials" = [
+        "tutorials/index.md",
+        {"Getting Started" = "tutorials/getting_started.md"},
+        {"Gradient Optimization" = "tutorials/gradient_optimization.md"},
+        {"Frequency Domain" = "tutorials/frequency_domain.md"},
+    ]},
+    {"FAQ" = "FAQ.md"},
+    {"Citing" = "citing.md"},
+    {"Contributing" = "contributing.md"},
+    {"Reference" = [
+        {"jaxnrsur" = [
+            {"DataLoader" = "api/jaxnrsur/DataLoader.md"},
+            {"EIMPredictor" = "api/jaxnrsur/EIMPredictor.md"},
+            {"Harmonics" = "api/jaxnrsur/Harmonics.md"},
+            {"Kernels" = "api/jaxnrsur/Kernels.md"},
+            {"NRHybSur3dq8" = "api/jaxnrsur/NRHybSur3dq8.md"},
+            {"NRSur7dq4" = "api/jaxnrsur/NRSur7dq4.md"},
+            {"PolyPredictor" = "api/jaxnrsur/PolyPredictor.md"},
+            {"special_function" = "api/jaxnrsur/special_function.md"},
+            {"Spline" = "api/jaxnrsur/Spline.md"},
+        ]},
+    ]},
+]
+
+[project.extra.version]
+provider = "mike"
+default = "stable"
+
+[project.theme]
+variant = "modern"
+features = [
+    "navigation.instant",
+    "navigation.tabs",
+    "navigation.top",
+    "toc.follow",
+    "header.autohide",
+]
+palette = [
+    {scheme = "slate", toggle = {icon = "material/brightness-4", name = "Switch to light mode"}},
+    {scheme = "default", toggle = {icon = "material/brightness-7", name = "Switch to dark mode"}},
+]
+
+[project.markdown_extensions.pymdownx.arithmatex]
+generic = true
+
+[project.markdown_extensions.pymdownx.superfences]
+
+[project.markdown_extensions.admonition]
+
+[project.markdown_extensions.toc]
+permalink = "¤"
+toc_depth = 4
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+filters = ["!^_[^_]", "!^logger$"]
+inherited_members = false
+group_by_category = true
+show_category_heading = false
+summary = {attributes = true, functions = true}
+show_root_heading = false
+show_root_full_path = false
+show_if_no_docstring = false
+show_signature_annotations = true
+show_source = false
+members_order = ["__all__", "alphabetical"]
+heading_level = 3
