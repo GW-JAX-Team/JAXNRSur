@@ -120,13 +120,15 @@ class CubicSpline:
         diff = jnp.diff(x)
         lower_diag = diff[:-1] / (diff[:-1] + diff[1:])
         upper_diag = diff[1:] / (diff[:-1] + diff[1:])
-        lower_diag = jnp.concatenate([lower_diag, jnp.ones(1)])
-        upper_diag = jnp.concatenate([jnp.ones(1), upper_diag])
+        # Natural BC: M_0 = M_{N-1} = 0 (second derivative = 0 at endpoints).
+        # Zeros in the off-diagonal boundary positions enforce this; ones would
+        # couple the endpoint to its neighbor (wrong BC that was here before).
+        lower_diag = jnp.concatenate([lower_diag, jnp.zeros(1)])
+        upper_diag = jnp.concatenate([jnp.zeros(1), upper_diag])
         operator = lx.TridiagonalLinearOperator(diag, lower_diag, upper_diag)
         vector = 6.0 * __class__.divided_difference(
             x[:-2], x[1:-1], x[2:], y[:-2], y[1:-1], y[2:]
         )
-        # Natural spline boundary conditions (second derivative = 0 at edges)
         low_edge = jnp.array([0])
         high_edge = jnp.array([0])
         vector = jnp.concatenate([low_edge, vector, high_edge])
