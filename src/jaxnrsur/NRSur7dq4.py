@@ -158,7 +158,7 @@ class NRSur7dq4DataLoader(DataLoader):
             jnp.array([[0, 1, 1, 2], [2, 3, 3, 4], [4, 5, 5, 6]])
         ]
         self.rk4_dt = self.diff_t_ds[: 2 * n_steps][
-            jnp.array([[0, 1, 1, 2], [2, 3, 3, 4], [4, 5, 5, 6]])
+            jnp.array([[0, 0, 0, 0], [2, 2, 2, 2], [4, 4, 4, 4]])
         ]
         t_ds_rk4 = self.t_ds[: 2 * n_steps : 2]
 
@@ -1106,11 +1106,7 @@ class NRSur7dq4Model(WaveformModel):
         # The shape of Omega should be (n_timestep, n_omega)
         Omega = jnp.concatenate([Omega_0[jnp.newaxis, :], Omega_rk4, Omega], axis=0)
 
-        # Interpolating to the coorbital time array
-        # NOTE: the interpolated omega currently has a 1e-5 level discrepancy
-        # compared to the original NRSur7dq4 code.
-        # It is either from the integrator or the interpolation.
-        # This should be investigated further.
+        # Interpolate to the coorbital time array
         Omega_interp = self.interp_vmap(
             self.data.t_ds_array,
             Omega,
@@ -1121,6 +1117,22 @@ class NRSur7dq4Model(WaveformModel):
             (
                 Omega_interp[:, :4].T
                 / (jnp.sqrt(jnp.sum(Omega_interp[:, :4] ** 2, axis=1)))
+            ).T
+        )
+        # Normalize spins to their initial magnitudes (matching gwsurrogate's normalize_spin).
+        # The spline preserves the spin direction but not the magnitude exactly between knots.
+        Omega_interp = Omega_interp.at[:, 5:8].set(
+            (
+                Omega_interp[:, 5:8].T
+                / jnp.sqrt(jnp.sum(Omega_interp[:, 5:8] ** 2, axis=1))
+                * normA
+            ).T
+        )
+        Omega_interp = Omega_interp.at[:, 8:11].set(
+            (
+                Omega_interp[:, 8:11].T
+                / jnp.sqrt(jnp.sum(Omega_interp[:, 8:11] ** 2, axis=1))
+                * normB
             ).T
         )
 
