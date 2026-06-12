@@ -111,13 +111,13 @@ class ConstantKernel(Kernel):
 
     Attributes:
         constant_value (float): The constant value to return.
-        x_dims (int): Number of rows in the output matrix.
-        y_dims (int): Number of columns in the output matrix.
+        x_dims (int): Number of rows in the output matrix (static).
+        y_dims (int): Number of columns in the output matrix (static).
     """
 
     constant_value: float
-    x_dims: int
-    y_dims: int
+    x_dims: int = eqx.field(static=True)
+    y_dims: int = eqx.field(static=True)
 
     def __init__(self, constant_value: float = 1.0, x_dims: int = 1, y_dims: int = 1):
         super().__init__()
@@ -168,13 +168,13 @@ class WhiteKernel(Kernel):
 
     Attributes:
         noise_level (float): Noise level (currently unused).
-        x_dims (int): Number of rows in the output matrix.
-        y_dims (int): Number of columns in the output matrix.
+        x_dims (int): Number of rows in the output matrix (static).
+        y_dims (int): Number of columns in the output matrix (static).
     """
 
     noise_level: float
-    x_dims: int
-    y_dims: int
+    x_dims: int = eqx.field(static=True)
+    y_dims: int = eqx.field(static=True)
 
     def __init__(self, noise_level=1.0, x_dims: int = 1, y_dims: int = 1):
         super().__init__()

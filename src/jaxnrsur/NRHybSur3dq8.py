@@ -120,6 +120,11 @@ class NRHybSur3dq8DataLoader(eqx.Module):
                 result["predictors"] = predictors
                 result["eim_basis"] = jnp.array(node_data["ei_basis"])
                 result["name"] = node_data["name"][()].decode("utf-8")  # type: ignore
+                # Stack all EIMpredictor leaves so eqx.filter_vmap can batch the
+                # loop over nodes into a single vectorised kernel call.
+                result["stacked_predictor"] = jax.tree_util.tree_map(
+                    lambda *xs: jnp.stack(xs), *predictors
+                )
                 return result
             else:
                 raise ValueError("n_nodes data doesn't exist")
@@ -143,6 +148,7 @@ class NRHybSur3dq8DataLoader(eqx.Module):
             "predictors": [lambda x: 1],
             "eim_basis": jnp.zeros((1, length)),
             "name": name,
+            "stacked_predictor": None,  # no real nodes — always evaluates to zero
         }
 
     def read_single_mode(self, file: h5py.File, mode: tuple[int, int]) -> dict:
@@ -228,10 +234,11 @@ class NRHybSur3dq8Model(WaveformModel):
                 self.negative_harmonics.append(
                     SpinWeightedSphericalHarmonics(-2, mode[0], -mode[1])
                 )
-            if mode[1] > 0:
-                negative_mode_prefactor.append((-1) ** mode[0])
-            else:
-                negative_mode_prefactor.append(0)
+                # h_{l,-m} = (-1)^l * conj(h_{l,m}) for m > 0; no negative partner for m = 0
+                if mode[1] > 0:
+                    negative_mode_prefactor.append((-1) ** mode[0])
+                else:
+                    negative_mode_prefactor.append(0)
 
         self.mode_no22 = [
             self.data.modes[i] for i in range(len(self.data.modes)) if i != 0
@@ -289,10 +296,14 @@ class NRHybSur3dq8Model(WaveformModel):
         Returns:
             Float[Array, " n_sample"]: EIM basis evaluated at parameters.
         """
-        result = jnp.zeros((eim_dict["n_nodes"], 1))
-        for i in range(eim_dict["n_nodes"]):
-            result = result.at[i].set(eim_dict["predictors"][i](params))
-        return jnp.dot(eim_dict["eim_basis"].T, result[:, 0])
+        stacked = eim_dict["stacked_predictor"]
+        if stacked is not None:
+            node_vals = eqx.filter_vmap(lambda p: p(params))(stacked)
+            # Each GPR returns shape (1,) for a single test point; squeeze to scalar per node.
+            node_vals = node_vals[:, 0]
+        else:
+            node_vals = jnp.zeros(eim_dict["n_nodes"])
+        return jnp.dot(eim_dict["eim_basis"].T, node_vals)
 
     @staticmethod
     def get_real_imag(
@@ -414,9 +425,16 @@ class NRHybSur3dq8Model(WaveformModel):
         # (×2) used to rotate coorbital modes into the inertial frame:
         #   h_lm_inertial = h_coorb_lm * exp(-i·m·φ_orb)
         # JAXNRSur convention: h22 = A·exp(+i·phase_22), gwsurrogate: A·exp(-i·φ_22),
-        # so phase_22 = -φ_22 and φ_orb = -phase_22/2, giving
+        # so phase_22 = -φ_22_raw and φ_orb = -phase_22/2, giving
         #   h_lm_inertial = h_coorb_lm * exp(+i·m·phase_22/2).
+        # gwsurrogate aligns φ_22 at the LAST time point (φ_22 -= φ_22[refIdx]).
+        # refIdx is found by _search_omega(omega22, 0) which returns the last
+        # element because omega22[-1]=0 is appended and is the closest to 0.
+        # To match, subtract phase_22[-1] from the continuous phase before use.
         h22, phase_22 = self.get_22_mode(time, params)
+        phase_22_ref = phase_22[-1]
+        phase_22 = phase_22 - phase_22_ref
+        h22 = h22 * jnp.exp(-1j * phase_22_ref)
         waveform += h22 * SpinWeightedSphericalHarmonics(-2, 2, 2)(theta, -phi)
         waveform += jnp.conj(h22) * SpinWeightedSphericalHarmonics(-2, 2, -2)(
             theta, -phi
