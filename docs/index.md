@@ -15,4 +15,5 @@ JAXNRSur is a JAX-based package for differentiable evaluation of numerical relat
 - **[Quick Start](quickstart.md)** — A basic example to get started
 - **[Tutorials](tutorials/index.md)** — Step-by-step guides and worked examples
 - **[FAQ](FAQ.md)** — Answers to common questions
-- **[Contributing](contributing.md)** — How to contribute to JAXNRSur
+- **[Citing JAXNRSur](citing.md)** — How to cite JAXNRSur and the project's origins
+- **[Contributing to JAXNRSur](contributing.md)** — How to contribute to JAXNRSur
