@@ -40,6 +40,11 @@ pip install -e .
 
 We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python environment. After cloning the repository, run `uv sync` to create a virtual environment with all dependencies installed.
 
+## Origins
+
+JAXNRSur was originally developed as [kazewong/JAXNRSur](https://github.com/kazewong/JAXNRSur) by [Kaze W. K. Wong](https://github.com/kazewong) and others.
+The original repository is no longer actively maintained; this fork is the active continuation of the project.
+
 ## Attribution
 
 If you use JAXNRSur in your research, please cite the underlying surrogate models:
