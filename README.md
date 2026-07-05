@@ -42,7 +42,7 @@ We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python enviro
 
 ## Origins
 
-JAXNRSur was originally developed as [kazewong/JAXNRSur](https://github.com/kazewong/JAXNRSur) by [Kaze W. K. Wong](https://github.com/kazewong) and others.
+JAXNRSur was originally developed as [kazewong/JaxNRSur](https://github.com/kazewong/JaxNRSur) by [Kaze W. K. Wong](https://github.com/kazewong) and others.
 The original repository is no longer actively maintained; this fork is the active continuation of the project.
 
 ## Attribution
