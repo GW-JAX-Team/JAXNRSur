@@ -1,6 +1,6 @@
 ci:
   autoupdate_branch: main
-  skip: [uv-lock, pyright]
+  skip: [pyright]
 
 repos:
   - repo: https://github.com/astral-sh/uv-pre-commit
