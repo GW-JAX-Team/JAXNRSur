@@ -36,12 +36,7 @@ import pytest
 
 jax.config.update("jax_enable_x64", True)
 
-try:
-    import gwsurrogate
-
-    GWSUR_AVAILABLE = True
-except ImportError:
-    GWSUR_AVAILABLE = False
+gwsurrogate = pytest.importorskip("gwsurrogate")
 
 
 # ---------------------------------------------------------------------------
@@ -292,7 +287,6 @@ def _gwsur_worker_fn(args: tuple) -> tuple:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not GWSUR_AVAILABLE, reason="gwsurrogate required")
 @pytest.mark.parametrize(
     "cfg",
     [
