@@ -23,8 +23,10 @@ cd JAXNRSur
 pip install -e .
 ```
 
-We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python environment. After cloning the repository, run `uv sync` to create a virtual environment with all dependencies installed.
+We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python environment.
+After cloning the repository, run `uv sync` to create a virtual environment with all dependencies installed.
 
 ## Data cache
 
-Surrogate data files are downloaded automatically from Zenodo on first use and cached in `$XDG_CACHE_HOME/.JAXNRSur` (defaults to `~/.cache/.JAXNRSur` when `XDG_CACHE_HOME` is not set). On HPC systems where `XDG_CACHE_HOME` points to a project or scratch space, the data will be stored there automatically.
+Surrogate data files are downloaded automatically from Zenodo on first use and cached in `$XDG_CACHE_HOME/.JAXNRSur` (defaults to `~/.cache/.JAXNRSur` when `XDG_CACHE_HOME` is not set).
+On HPC systems where `XDG_CACHE_HOME` points to a project or scratch space, the data will be stored there automatically.

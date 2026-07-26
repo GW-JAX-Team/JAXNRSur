@@ -2,7 +2,8 @@
 
 ## A JAX-based package for differentiable numerical relativity surrogate waveform generation
 
-JAXNRSur is a JAX-based package for differentiable evaluation of numerical relativity surrogate waveforms. By reimplementing the surrogate pipeline in JAX, it delivers NR-faithful time-domain waveforms for precessing and high-mass-ratio binary black holes with native GPU support and automatic differentiation — enabling gradient-based inference within modern gravitational-wave pipelines such as [Jim](https://github.com/GW-JAX-Team/jim).
+JAXNRSur is a JAX-based package for differentiable evaluation of numerical relativity surrogate waveforms.
+By reimplementing the surrogate pipeline in JAX, it delivers NR-faithful time-domain waveforms for precessing and high-mass-ratio binary black holes with native GPU support and automatic differentiation — enabling gradient-based inference within modern gravitational-wave pipelines such as [Jim](https://github.com/GW-JAX-Team/jim).
 
 **Supported models:**
 

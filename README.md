@@ -4,7 +4,8 @@
 
 [![docs](https://img.shields.io/badge/docs-online-blue)](https://gw-jax-team.github.io/JAXNRSur/) [![license](https://img.shields.io/badge/License-MIT-blue)](https://github.com/GW-JAX-Team/JAXNRSur/blob/main/LICENSE) [![coverage](https://img.shields.io/coveralls/github/GW-JAX-Team/JAXNRSur/main)](https://coveralls.io/github/GW-JAX-Team/JAXNRSur?branch=main) [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/GW-JAX-Team/JAXNRSur/main.svg)](https://results.pre-commit.ci/latest/github/GW-JAX-Team/JAXNRSur/main)
 
-JAXNRSur is a JAX-based package for differentiable evaluation of numerical relativity surrogate waveforms. By reimplementing the surrogate pipeline in JAX, it delivers NR-faithful time-domain waveforms for precessing and high-mass-ratio binary black holes with native GPU support and automatic differentiation — enabling gradient-based inference within modern gravitational-wave pipelines such as [Jim](https://github.com/GW-JAX-Team/jim).
+JAXNRSur is a JAX-based package for differentiable evaluation of numerical relativity surrogate waveforms.
+By reimplementing the surrogate pipeline in JAX, it delivers NR-faithful time-domain waveforms for precessing and high-mass-ratio binary black holes with native GPU support and automatic differentiation — enabling gradient-based inference within modern gravitational-wave pipelines such as [Jim](https://github.com/GW-JAX-Team/jim).
 
 **Supported models:**
 
@@ -38,7 +39,8 @@ cd JAXNRSur
 pip install -e .
 ```
 
-We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python environment. After cloning the repository, run `uv sync` to create a virtual environment with all dependencies installed.
+We recommend using [uv](https://docs.astral.sh/uv/) to manage your Python environment.
+After cloning the repository, run `uv sync` to create a virtual environment with all dependencies installed.
 
 ## Origins
 
