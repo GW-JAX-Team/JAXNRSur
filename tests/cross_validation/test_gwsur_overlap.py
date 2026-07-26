@@ -45,6 +45,15 @@ gwsurrogate = pytest.importorskip("gwsurrogate")
 
 _DT = 1.0 / 4096  # time step (s)
 _SAMPLE_TIMEOUT_S = 120  # per-sample wall-clock timeout (seconds)
+_EXPECTED_EVALUATION_ERRORS = (
+    ArithmeticError,
+    KeyError,
+    MemoryError,
+    OSError,
+    RuntimeError,
+    TypeError,
+    ValueError,
+)
 
 _NRSUR7DQ4_CFG = {
     "name": "NRSur7dq4",
@@ -221,7 +230,6 @@ def _build_jaxnrsur_wrapper(model_name: str):
 
 def _build_params_full(p: dict, cfg: dict) -> jnp.ndarray:
     """Build the full JAXNRSur parameter vector [M, dL, iota, phi, model_params]."""
-    import equinox as eqx
 
     if cfg["precessing"]:
         model_params = [
@@ -278,7 +286,7 @@ def _gwsur_worker_fn(args: tuple) -> tuple:
         sur = _gws.LoadSurrogate(model_name)
         t, h = _gwsur_waveform(sur, p, cfg)
         return t, h, None
-    except Exception as exc:
+    except _EXPECTED_EVALUATION_ERRORS as exc:
         return None, None, str(exc)
 
 
@@ -322,7 +330,7 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
             try:
                 t, h = _gwsur_waveform(sur, p, cfg)
                 gwsur_outputs.append((t, h, None))
-            except Exception as exc:
+            except _EXPECTED_EVALUATION_ERRORS as exc:
                 gwsur_outputs.append((None, None, str(exc)))
 
     # --- Phase 2: JAXNRSur evaluation + comparison ---
@@ -389,7 +397,7 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
                 if batch_size is not None and next_bs == batch_size:
                     # Even batch_size=1 OOMs; fall back to per-sample JIT loop.
                     print(
-                        f"\n  [OOM] falling back to per-sample jit loop ...",
+                        "\n  [OOM] falling back to per-sample jit loop ...",
                         flush=True,
                     )
                     _fn_single = eqx.filter_jit(_eval_single)
@@ -469,7 +477,7 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
                 _disarm_timeout()
                 print(f"  TIMEOUT: {exc}")
                 failed.append((i, str(exc)))
-            except Exception as exc:
+            except _EXPECTED_EVALUATION_ERRORS as exc:
                 _disarm_timeout()
                 print(f"  FAILED: {exc}")
                 failed.append((i, str(exc)))

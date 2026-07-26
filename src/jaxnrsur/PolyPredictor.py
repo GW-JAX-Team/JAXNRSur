@@ -1,8 +1,8 @@
+import equinox as eqx
+import jax
 import jax.numpy as jnp
 from beartype import beartype as typechecker
 from jaxtyping import Array, Float, Int, jaxtyped
-import equinox as eqx
-import jax
 
 
 @jax.custom_jvp
@@ -51,13 +51,13 @@ class PolyPredictor(eqx.Module):
 
     coefs: Float[Array, " n_sum"]
     bfOrders: Float[Array, " n_sum n_lambda"]
-    n_max: Int
+    n_max: int
 
     def __init__(
         self,
         coefs: Float[Array, " n_sum"],
         bfOrders: Float[Array, " n_sum n_lambda"],
-        n_max: Int,
+        n_max: int,
     ):
         """Initializes PolyPredictor with coefficients and basis function orders.
 
@@ -113,7 +113,7 @@ class PolyPredictor(eqx.Module):
         return self.predict(X, self.coefs, self.bfOrders)
 
     def predict_at_index(
-        self, X: Float[Array, " n_lambda "], idx: Int
+        self, X: Float[Array, " n_lambda "], idx: Int[Array, ""]
     ) -> Float[Array, " 1"]:
         """Predicts output at a specific index.
 

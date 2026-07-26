@@ -1,12 +1,13 @@
-import pytest
 import jax.numpy as jnp
+import pytest
+
 from jaxnrsur.Kernels import (
-    Kernel,
-    SumKernel,
-    ProductKernel,
-    ConstantKernel,
-    WhiteKernel,
     RBF,
+    ConstantKernel,
+    Kernel,
+    ProductKernel,
+    SumKernel,
+    WhiteKernel,
     cdist,
 )
 

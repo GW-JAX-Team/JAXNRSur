@@ -6,9 +6,9 @@ sinusoids so we can test the wrapper logic in isolation.
 
 import jax.numpy as jnp
 import pytest
+from jaxtyping import Array, Float
 
 from jaxnrsur import C_SI, MPC_SI, RSUN_SI, DataLoader, JAXNRSur, WaveformModel
-from jaxtyping import Array, Float
 
 
 class _DummyDataLoader(DataLoader):

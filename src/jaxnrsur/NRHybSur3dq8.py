@@ -1,14 +1,31 @@
-import h5py
+from collections.abc import Sequence
 
-import jax.numpy as jnp
+import equinox as eqx
+import h5py
 import jax
-from jaxnrsur.DataLoader import load_data, h5Group_to_dict, h5_mode_tuple
-from jaxnrsur.Spline import CubicSpline
+import jax.numpy as jnp
+from jaxtyping import Array, Float, Int
+
+from jaxnrsur import WaveformModel
+from jaxnrsur.DataLoader import DataLoader, h5_mode_tuple, h5Group_to_dict, load_data
 from jaxnrsur.EIMPredictor import EIMpredictor
 from jaxnrsur.Harmonics import SpinWeightedSphericalHarmonics
-from jaxnrsur import WaveformModel
-from jaxtyping import Array, Float, Int
-import equinox as eqx
+from jaxnrsur.Spline import CubicSpline
+from jaxnrsur.typing import FloatLike
+
+_DEFAULT_MODELIST: tuple[tuple[int, int], ...] = (
+    (2, 2),
+    (2, 1),
+    (2, 0),
+    (3, 0),
+    (3, 1),
+    (3, 2),
+    (3, 3),
+    (4, 2),
+    (4, 3),
+    (4, 4),
+    (5, 5),
+)
 
 
 def _map_params(params: Float[Array, " n_dim"]) -> Float[Array, " n_dim"]:
@@ -27,12 +44,14 @@ def _map_params(params: Float[Array, " n_dim"]) -> Float[Array, " n_dim"]:
     return jnp.array([jnp.log(q), chiHat, chi_a])
 
 
-def get_T3_phase(q: float, t: Float[Array, " n"], t_ref: float = 1000.0) -> float:
+def get_T3_phase(
+    q: FloatLike, t: Float[Array, " n"], t_ref: float = 1000.0
+) -> Float[Array, " n"]:
     """
     Compute the T3 phase correction for the waveform model.
 
     Args:
-        q (float): Mass ratio.
+        q (FloatLike): Mass ratio.
         t (Float[Array, " n"]): Time array.
         t_ref (float, optional): Reference time. Defaults to 1000.0.
 
@@ -45,31 +64,19 @@ def get_T3_phase(q: float, t: Float[Array, " n"], t_ref: float = 1000.0) -> floa
     return 2.0 / (eta * theta_raw**5) - 2.0 / (eta * theta_cal**5)
 
 
-class NRHybSur3dq8DataLoader(eqx.Module):
+class NRHybSur3dq8DataLoader(DataLoader):
     sur_time: Float[Array, " n_sample"]
     modes: list[dict]
 
     def __init__(
         self,
-        modelist: list[tuple[int, int]] = [
-            (2, 2),
-            (2, 1),
-            (2, 0),
-            (3, 0),
-            (3, 1),
-            (3, 2),
-            (3, 3),
-            (4, 2),
-            (4, 3),
-            (4, 4),
-            (5, 5),
-        ],
+        modelist: Sequence[tuple[int, int]] = _DEFAULT_MODELIST,
     ) -> None:
         """
         Initialize the NRHybSur3dq8DataLoader.
 
         Args:
-            modelist (list[tuple[int, int]], optional): List of mode tuples to load.
+            modelist (Sequence[tuple[int, int]]): Mode tuples to load.
         """
         data = load_data(
             "https://zenodo.org/records/3348115/files/NRHybSur3dq8.h5?download=1",
@@ -92,44 +99,55 @@ class NRHybSur3dq8DataLoader(eqx.Module):
             dict: Dictionary containing predictors, EIM basis, and metadata.
 
         Raises:
-            ValueError: If required data is missing or incorrectly formatted.
+            KeyError: If required data is missing.
+            TypeError: If required data has an unexpected HDF5 type.
         """
-        try:
-            result = {}
-            if isinstance(node_data["n_nodes"], h5py.Dataset):
-                n_nodes = int(node_data["n_nodes"][()])  # type: ignore
-                result["n_nodes"] = n_nodes
+        n_nodes_data = node_data["n_nodes"]
+        if not isinstance(n_nodes_data, h5py.Dataset):
+            raise TypeError("n_nodes data must be an HDF5 dataset")
 
-                predictors = []
-                for count in range(n_nodes):
-                    try:
-                        fit_data = node_data[
-                            "node_functions/ITEM_%d/node_function/DICT_fit_data"
-                            % (count)
-                        ]
-                    except ValueError:
-                        raise ValueError("GPR Fit info doesn't exist")
+        n_nodes = int(n_nodes_data[()])
+        result: dict[str, object] = {"n_nodes": n_nodes}
+        predictors = []
+        for count in range(n_nodes):
+            fit_data = node_data[
+                f"node_functions/ITEM_{count}/node_function/DICT_fit_data"
+            ]
+            if not isinstance(fit_data, h5py.Group):
+                raise TypeError("GPR fit data must be an HDF5 group")
 
-                    assert isinstance(fit_data, h5py.Group), (
-                        "GPR Fit info is not a group"
-                    )
-                    res = h5Group_to_dict(fit_data)
-                    node_predictor = EIMpredictor(res)
-                    predictors.append(node_predictor)
+            predictors.append(EIMpredictor(h5Group_to_dict(fit_data)))
 
-                result["predictors"] = predictors
-                result["eim_basis"] = jnp.array(node_data["ei_basis"])
-                result["name"] = node_data["name"][()].decode("utf-8")  # type: ignore
-                # Stack all EIMpredictor leaves so eqx.filter_vmap can batch the
-                # loop over nodes into a single vectorised kernel call.
-                result["stacked_predictor"] = jax.tree_util.tree_map(
-                    lambda *xs: jnp.stack(xs), *predictors
-                )
-                return result
-            else:
-                raise ValueError("n_nodes data doesn't exist")
-        except ValueError:
-            raise ValueError("n_nodes data doesn't exist")
+        name_data = node_data["name"]
+        if not isinstance(name_data, h5py.Dataset):
+            raise TypeError("Function name data must be an HDF5 dataset")
+        name = name_data[()]
+        if isinstance(name, bytes):
+            result["name"] = name.decode("utf-8")
+        elif isinstance(name, str):
+            result["name"] = name
+        else:
+            raise TypeError("Function name must be text")
+
+        eim_basis_data = node_data["ei_basis"]
+        if not isinstance(eim_basis_data, h5py.Dataset):
+            raise TypeError("EIM basis data must be an HDF5 dataset")
+
+        result["predictors"] = predictors
+        result["eim_basis"] = jnp.array(eim_basis_data[()])
+        # Stack all EIMpredictor leaves so eqx.filter_vmap can batch the
+        # loop over nodes into a single vectorised kernel call.
+        result["stacked_predictor"] = jax.tree_util.tree_map(
+            lambda *xs: jnp.stack(xs), *predictors
+        )
+        return result
+
+    def read_function_item(self, data: h5py.Group, item: str) -> dict:
+        """Read a function group stored under ``item`` in an HDF5 group."""
+        function_data = data[item]
+        if not isinstance(function_data, h5py.Group):
+            raise TypeError(f"{item} must be an HDF5 group")
+        return self.read_function(function_data)
 
     @staticmethod
     def make_empty_function(name: str, length: int) -> dict:
@@ -163,17 +181,18 @@ class NRHybSur3dq8DataLoader(eqx.Module):
             dict: Dictionary containing mode data.
         """
         result = {}
-        data = file["sur_subs/%s/func_subs" % (h5_mode_tuple[mode])]
-        assert isinstance(data, h5py.Group), "Mode data is not a group"
+        data = file[f"sur_subs/{h5_mode_tuple[mode]}/func_subs"]
+        if not isinstance(data, h5py.Group):
+            raise TypeError("Mode data must be an HDF5 group")
         if mode == (2, 2):
-            result["phase"] = self.read_function(data["ITEM_0"])  # type: ignore
-            result["amp"] = self.read_function(data["ITEM_1"])  # type: ignore
+            result["phase"] = self.read_function_item(data, "ITEM_0")
+            result["amp"] = self.read_function_item(data, "ITEM_1")
         else:
             if mode[1] != 0:
-                result["real"] = self.read_function(data["ITEM_0"])  # type: ignore
-                result["imag"] = self.read_function(data["ITEM_1"])  # type: ignore
+                result["real"] = self.read_function_item(data, "ITEM_0")
+                result["imag"] = self.read_function_item(data, "ITEM_1")
             else:
-                local_function = self.read_function(data["ITEM_0"])  # type: ignore
+                local_function = self.read_function_item(data, "ITEM_0")
                 if local_function["name"] == "re":
                     result["real"] = local_function
                     result["imag"] = self.make_empty_function(
@@ -188,7 +207,7 @@ class NRHybSur3dq8DataLoader(eqx.Module):
         return result
 
 
-class NRHybSur3dq8Model(WaveformModel):
+class NRHybSur3dq8Model(WaveformModel[NRHybSur3dq8DataLoader]):
     data: NRHybSur3dq8DataLoader
     mode_no22: list[dict]
     harmonics: list[SpinWeightedSphericalHarmonics]
@@ -199,20 +218,8 @@ class NRHybSur3dq8Model(WaveformModel):
 
     def __init__(
         self,
-        modelist: list[tuple[int, int]] = [
-            (2, 2),
-            (2, 1),
-            (2, 0),
-            (3, 0),
-            (3, 1),
-            (3, 2),
-            (3, 3),
-            (4, 2),
-            (4, 3),
-            (4, 4),
-            (5, 5),
-        ],
-    ):
+        modelist: Sequence[tuple[int, int]] = _DEFAULT_MODELIST,
+    ) -> None:
         """
         Initialize NRHybSur3dq8Model.
 
@@ -220,9 +227,9 @@ class NRHybSur3dq8Model(WaveformModel):
         https://journals.aps.org/prd/abstract/10.1103/PhysRevD.99.064045
 
         Args:
-            modelist (list[tuple[int, int]]): List of modes to be used.
+            modelist (Sequence[tuple[int, int]]): Modes to be used.
         """
-        self.data = NRHybSur3dq8DataLoader(modelist=modelist)  # type: ignore
+        self.data = NRHybSur3dq8DataLoader(modelist=modelist)
         self.harmonics = []
         self.negative_harmonics = []
         negative_mode_prefactor = []
@@ -255,8 +262,8 @@ class NRHybSur3dq8Model(WaveformModel):
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_dim"],
-        theta: float = 0.0,
-        phi: float = 0.0,
+        theta: FloatLike = 0.0,
+        phi: FloatLike = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Compute the waveform for given time and source parameters.
@@ -339,7 +346,7 @@ class NRHybSur3dq8Model(WaveformModel):
             tuple: Lists of real and imaginary arrays for each mode.
         """
         return jax.tree_util.tree_map(
-            lambda mode: __class__.get_real_imag(mode, params),
+            lambda mode: NRHybSur3dq8Model.get_real_imag(mode, params),
             modes,
             is_leaf=lambda x: isinstance(x, dict),
         )
@@ -380,7 +387,7 @@ class NRHybSur3dq8Model(WaveformModel):
         mapped = _map_params(params)[None]  # EIM was trained on [log(q), chiHat, chi_a]
         amp = self.get_eim(self.data.modes[self.mode_22_index]["amp"], mapped)
         phase = -self.get_eim(self.data.modes[self.mode_22_index]["phase"], mapped)
-        phase = phase + get_T3_phase(q, self.data.sur_time)  # type: ignore
+        phase = phase + get_T3_phase(q, self.data.sur_time)
         amp_interp = CubicSpline(self.data.sur_time, amp)(time)
         phase_interp = CubicSpline(self.data.sur_time, phase)(time)
         return amp_interp * jnp.exp(1j * phase_interp), phase_interp
@@ -389,9 +396,9 @@ class NRHybSur3dq8Model(WaveformModel):
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_dim"],
-        theta: Float = 0.0,
-        phi: Float = 0.0,
-        omega_lower: Float = 0.0,
+        theta: FloatLike = 0.0,
+        phi: FloatLike = 0.0,
+        omega_lower: FloatLike = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
         Compute the geometric waveform (plus and cross polarizations) for given parameters.
@@ -457,9 +464,9 @@ class NRHybSur3dq8Model(WaveformModel):
         phase_sur = -self.get_eim(
             self.data.modes[self.mode_22_index]["phase"], mapped_p
         )
-        phase_sur = phase_sur + get_T3_phase(params[0], self.data.sur_time)  # type: ignore
-        orb_freq_grid = jnp.gradient(phase_sur, self.data.sur_time) / 2.0  # type: ignore[operator]
-        in_band = orb_freq_grid >= omega_lower
+        phase_sur = phase_sur + get_T3_phase(params[0], self.data.sur_time)
+        orb_freq_grid = jnp.asarray(jnp.gradient(phase_sur, self.data.sur_time)) / 2.0
+        in_band = orb_freq_grid >= jnp.asarray(omega_lower)
         t_lower_m = self.data.sur_time[jnp.argmax(in_band)]
         t_start = jnp.where(omega_lower > 0, t_lower_m, self.data.sur_time[0])
 

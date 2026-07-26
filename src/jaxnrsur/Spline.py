@@ -1,7 +1,7 @@
-import lineax as lx
-import jax.numpy as jnp
 import jax
-from jaxtyping import Float, Array
+import jax.numpy as jnp
+import lineax as lx
+from jaxtyping import Array, Float
 
 
 class CubicSpline:

@@ -2,13 +2,20 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("JAXNRSur")
 
+import logging
+from abc import abstractmethod
+from typing import Generic, Optional, TypeVar
+
+import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
+
 from jaxnrsur.DataLoader import DataLoader
-from abc import abstractmethod
-from typing import Optional
-import equinox as eqx
-import logging
+from jaxnrsur.typing import FloatLike
+
+logger = logging.getLogger(__name__)
+
+DataLoaderT = TypeVar("DataLoaderT", bound=DataLoader)
 
 # geometric units to SI
 GMSUN_SI = 1.32712442099000e20
@@ -20,17 +27,17 @@ PC_SI = 3.08567758149136720000e16
 MPC_SI = 1e6 * PC_SI
 
 
-class WaveformModel(eqx.Module):
-    data: DataLoader
+class WaveformModel(eqx.Module, Generic[DataLoaderT]):
+    data: DataLoaderT
 
     @abstractmethod
     def get_waveform_geometric(
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_param"],
-        theta: Float,
-        phi: Float,
-        omega_lower: Float = 0.0,
+        theta: FloatLike,
+        phi: FloatLike,
+        omega_lower: FloatLike = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         raise NotImplementedError
 
@@ -53,7 +60,7 @@ class JAXNRSur:
         self.alpha_window = alpha_window
 
         if segment_length is None or sampling_rate is None:
-            logging.warning(
+            logger.warning(
                 "segment_length or sampling_rate is not set. "
                 "Waveform generation in frequency domain will not work as expected. "
             )

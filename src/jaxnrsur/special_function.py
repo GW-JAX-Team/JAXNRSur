@@ -1,15 +1,17 @@
 import jax
 
+from jaxnrsur.typing import FloatScalar, IntLike
 
-def comb(N: int, k: int) -> float:
+
+def comb(N: IntLike, k: IntLike) -> FloatScalar:
     """Compute the binomial coefficient (N choose k) using JAX fori_loop.
 
     Args:
-        N (int): The total number of items.
-        k (int): The number of items to choose.
+        N (IntLike): The total number of items.
+        k (IntLike): The number of items to choose.
 
     Returns:
-        float: The binomial coefficient as a float.
+        FloatScalar: The binomial coefficient as a scalar JAX array.
     """
     return jax.lax.fori_loop(0, k, lambda i, acc: acc * (N - i) / (i + 1), 1.0)
 

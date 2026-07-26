@@ -1,20 +1,40 @@
+from collections.abc import Sequence
 from functools import partial
-import jax.numpy as jnp
+
+import equinox as eqx
 import jax
+import jax.numpy as jnp
 from jax.scipy.special import factorial
-from jaxnrsur.Spline import CubicSpline
+from jaxtyping import Array, Complex, Float
+
+from jaxnrsur import WaveformModel
+from jaxnrsur.DataLoader import DataLoader, h5Group_to_dict, load_data
 from jaxnrsur.Harmonics import SpinWeightedSphericalHarmonics
-from jaxnrsur.DataLoader import load_data, h5Group_to_dict, DataLoader
-from jaxnrsur.special_function import comb
 from jaxnrsur.PolyPredictor import (
     PolyPredictor,
     evaluate_ensemble,
     evaluate_ensemble_dynamics,
     make_polypredictor_ensemble,
 )
-from jaxnrsur import WaveformModel
-from jaxtyping import Array, Float, Complex
-import equinox as eqx
+from jaxnrsur.special_function import comb
+from jaxnrsur.Spline import CubicSpline
+from jaxnrsur.typing import FloatLike
+
+_DEFAULT_MODELIST: tuple[tuple[int, int], ...] = (
+    (2, 0),
+    (2, 1),
+    (2, 2),
+    (3, 0),
+    (3, 1),
+    (3, 2),
+    (3, 3),
+    (4, 0),
+    (4, 1),
+    (4, 2),
+    (4, 3),
+    (4, 4),
+)
+_DEFAULT_INIT_QUAT = jnp.array([1.0, 0.0, 0.0, 0.0])
 
 
 class NRSur7dq4ModeFunction(eqx.Module):
@@ -91,27 +111,14 @@ class NRSur7dq4DataLoader(DataLoader):
 
     def __init__(
         self,
-        modelist: list[tuple[int, int]] = [
-            (2, 0),
-            (2, 1),
-            (2, 2),
-            (3, 0),
-            (3, 1),
-            (3, 2),
-            (3, 3),
-            (4, 0),
-            (4, 1),
-            (4, 2),
-            (4, 3),
-            (4, 4),
-        ],
+        modelist: Sequence[tuple[int, int]] = _DEFAULT_MODELIST,
     ) -> None:
         """
         Initialize the data loader for the NRSur7dq4 model
 
         Args:
             path (str): Path to the HDF5 file
-            modelist (list[tuple[int, int]], optional): List of modes to load.
+            modelist (Sequence[tuple[int, int]]): Modes to load.
             Defaults to [(2, 0), (2, 1), (2, 2), (3, 0), (3, 1),
                 (3, 2), (3, 3), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)].
         """
@@ -345,7 +352,7 @@ class NRSur7dq4DataLoader(DataLoader):
         return result
 
 
-class NRSur7dq4Model(WaveformModel):
+class NRSur7dq4Model(WaveformModel[NRSur7dq4DataLoader]):
     data: NRSur7dq4DataLoader
     modelist_dict: dict
     modelist_dict_extended: dict
@@ -356,30 +363,17 @@ class NRSur7dq4Model(WaveformModel):
 
     def __init__(
         self,
-        modelist: list[tuple[int, int]] = [
-            (2, 0),
-            (2, 1),
-            (2, 2),
-            (3, 0),
-            (3, 1),
-            (3, 2),
-            (3, 3),
-            (4, 0),
-            (4, 1),
-            (4, 2),
-            (4, 3),
-            (4, 4),
-        ],
-    ):
+        modelist: Sequence[tuple[int, int]] = _DEFAULT_MODELIST,
+    ) -> None:
         """
         Initialize the NRSur7dq4 model.
 
         Args:
-            modelist (list[tuple[int, int]], optional): List of modes to include in the model.
+            modelist (Sequence[tuple[int, int]]): Modes to include in the model.
                 Defaults to [(2, 0), (2, 1), (2, 2), (3, 0), (3, 1),
                 (3, 2), (3, 3), (4, 0), (4, 1), (4, 2), (4, 3), (4, 4)].
         """
-        self.data = NRSur7dq4DataLoader(modelist=modelist)  # type: ignore
+        self.data = NRSur7dq4DataLoader(modelist=modelist)
         self.harmonics = []
 
         self.n_modes = len(modelist)
@@ -412,10 +406,10 @@ class NRSur7dq4Model(WaveformModel):
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_dim"],
-        theta: float = 0.0,
-        phi: float = 0.0,
+        theta: FloatLike = 0.0,
+        phi: FloatLike = 0.0,
         # quaternions
-        init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
+        init_quat: Float[Array, " n_quat"] = _DEFAULT_INIT_QUAT,
         init_orb_phase: float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
@@ -439,7 +433,7 @@ class NRSur7dq4Model(WaveformModel):
         )
 
     def _get_coorb_params(
-        self, q: Float, Omega: Float[Array, " n_Omega"]
+        self, q: Float[Array, ""], Omega: Float[Array, " n_Omega"]
     ) -> Float[Array, " n_dim"]:
         """
         Given the mass ratio and dynamic parameters such as spins, compute the coorbital parameters.
@@ -510,7 +504,7 @@ class NRSur7dq4Model(WaveformModel):
     def get_Omega_derivative(
         self,
         Omega_i: Float[Array, " n_Omega"],
-        q: Float,
+        q: Float[Array, ""],
         predictor: PolyPredictor,
     ) -> Float[Array, " n_Omega"]:
         """
@@ -577,7 +571,7 @@ class NRSur7dq4Model(WaveformModel):
 
     def AB4(
         self,
-        q: Float,
+        q: Float[Array, ""],
         Omega_i4: Float[Array, " 4 n_Omega"],
         k_ab4: Float[Array, " 3 n_Omega"],
         predictor,
@@ -640,10 +634,10 @@ class NRSur7dq4Model(WaveformModel):
 
     def RK4(
         self,
-        q: Float,
+        q: Float[Array, ""],
         Omega: Float[Array, " n_Omega"],
         predictors,
-        dt: Float,
+        dt: Float[Array, " 4"],
     ) -> tuple[Float[Array, " n_Omega"], Float[Array, " n_Omega"]]:
         """
         Runge-Kutta 4th order method for updating the dynamic parameters Omega for one step.
@@ -661,7 +655,11 @@ class NRSur7dq4Model(WaveformModel):
         predictor_parameters, n_max = eqx.partition(predictors, eqx.is_array)
 
         def get_RK4_Omega_derivatives(
-            carry: tuple[Float[Array, " n_Omega"], Float, Float[Array, " n_Omega"]],
+            carry: tuple[
+                Float[Array, " n_Omega"],
+                Float[Array, ""],
+                Float[Array, " n_Omega"],
+            ],
             data: tuple[PolyPredictor, Float[Array, " 4"]],
         ):
             Omega, q, derivative = carry
@@ -674,7 +672,7 @@ class NRSur7dq4Model(WaveformModel):
 
             return (Omega, q, derivative), derivative
 
-        state, dOmega_dt_rk4 = jax.lax.scan(
+        _state, dOmega_dt_rk4 = jax.lax.scan(
             get_RK4_Omega_derivatives,
             (Omega, q, jnp.zeros(len(Omega))),
             (predictor_parameters, jnp.array([0, 1, 1, 2]) * dt),
@@ -694,7 +692,10 @@ class NRSur7dq4Model(WaveformModel):
         return Omega_next, k_next
 
     def normalize_Omega(
-        self, Omega: Float[Array, " n_Omega"], normA: float, normB: float
+        self,
+        Omega: Float[Array, " n_Omega"],
+        normA: Float[Array, ""],
+        normB: Float[Array, ""],
     ) -> Float[Array, " n_Omega"]:
         """
         Normalize the Omega parameters to ensure they are unit vectors in the coorbital frame.
@@ -954,7 +955,7 @@ class NRSur7dq4Model(WaveformModel):
             summation = (
                 (
                     (-1) ** rho
-                    * comb_vmap(ell + m_p, rho)  # type: ignore
+                    * comb_vmap(ell + m_p, rho)
                     * comb_vmap(ell - m_p, ell - rho - m)
                 )
                 * abs_R_ratio[:, None] ** (2 * rho)
@@ -973,7 +974,7 @@ class NRSur7dq4Model(WaveformModel):
         ells = jnp.array([x[0] for x in self.modelist_dict_extended.values()])
         ms = jnp.array([x[1] for x in self.modelist_dict_extended.values()])
 
-        matrix_coefs = jax.vmap(wigner_d_kernel)(ells, ms).T  # type: ignore
+        matrix_coefs = jax.vmap(wigner_d_kernel)(ells, ms).T
 
         # Check the gradient of this (masking out nans)
         matrix_coefs = jnp.where(
@@ -1015,10 +1016,10 @@ class NRSur7dq4Model(WaveformModel):
     def get_waveform_inertial_permode(
         self,
         params: Float[Array, " n_dim"],
-        theta: float = 0.0,
-        phi: float = 0.0,
+        theta: FloatLike = 0.0,
+        phi: FloatLike = 0.0,
         # quaternions
-        init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
+        init_quat: Float[Array, " n_quat"] = _DEFAULT_INIT_QUAT,
         init_orb_phase: float = 0.0,
     ) -> tuple[Complex[Array, "n_mode n_sample"], Float[Array, "n_sur_time 11"]]:
         """
@@ -1050,9 +1051,20 @@ class NRSur7dq4Model(WaveformModel):
 
         # RK4 for 3 steps
         def RK4_kernel(
-            carry: tuple[Float[Array, " n_Omega"], Float, Float, Float], data
+            carry: tuple[
+                Float[Array, " n_Omega"],
+                Float[Array, ""],
+                Float[Array, ""],
+                Float[Array, ""],
+            ],
+            data: tuple[PolyPredictor, Float[Array, " 4"]],
         ) -> tuple[
-            tuple[Float[Array, " n_Omega"], Float, Float, Float],
+            tuple[
+                Float[Array, " n_Omega"],
+                Float[Array, ""],
+                Float[Array, ""],
+                Float[Array, ""],
+            ],
             tuple[Float[Array, " n_Omega"], Float[Array, " n_Omega"]],
         ]:
             Omega, q, normA, normB = carry
@@ -1063,7 +1075,7 @@ class NRSur7dq4Model(WaveformModel):
 
             return (Omega_next, q, normA, normB), (Omega_next, k_next)
 
-        state, (Omega_rk4, dOmega_dt_rk4) = jax.lax.scan(
+        _state, (Omega_rk4, dOmega_dt_rk4) = jax.lax.scan(
             RK4_kernel, init_state, (self.data.rk4_predictor, self.data.rk4_dt)
         )
 
@@ -1072,18 +1084,18 @@ class NRSur7dq4Model(WaveformModel):
             carry: tuple[
                 Float[Array, " 4 n_Omega"],
                 Float[Array, " 3 n_Omega"],
-                Float,
-                Float,
-                Float,
+                Float[Array, ""],
+                Float[Array, ""],
+                Float[Array, ""],
             ],
-            data: tuple[PolyPredictor, Float[Array, " n_samples"]],
+            data: tuple[PolyPredictor, Float[Array, " 4"]],
         ) -> tuple[
             tuple[
                 Float[Array, " 4 n_Omega"],
                 Float[Array, " 3 n_Omega"],
-                Float,
-                Float,
-                Float,
+                Float[Array, ""],
+                Float[Array, ""],
+                Float[Array, ""],
             ],
             Float[Array, " n_Omega"],
         ]:
@@ -1098,7 +1110,7 @@ class NRSur7dq4Model(WaveformModel):
             return (Omega, k_ab4, q, normA, normB), Omega_next
 
         init_state_AB4 = (Omega_rk4, dOmega_dt_rk4, q, normA, normB)
-        state, Omega = jax.lax.scan(
+        _state, Omega = jax.lax.scan(
             AB4_kernel,
             init_state_AB4,
             (self.data.ab4_predictor, self.data.ab4_dt),
@@ -1166,7 +1178,7 @@ class NRSur7dq4Model(WaveformModel):
 
         inertial_h_lms += jnp.sum(hlm_projed, axis=-1).T
 
-        for idx in self.modelist_dict_extended.keys():
+        for idx in self.modelist_dict_extended:
             inertial_h_lms = inertial_h_lms.at[:, idx].set(
                 self.harmonics[idx](theta, -phi) * inertial_h_lms[:, idx]
             )
@@ -1177,11 +1189,11 @@ class NRSur7dq4Model(WaveformModel):
         self,
         time: Float[Array, " n_sample"],
         params: Float[Array, " n_dim"],
-        theta: Float = 0.0,
-        phi: Float = 0.0,
-        omega_lower: Float = 0.0,
+        theta: FloatLike = 0.0,
+        phi: FloatLike = 0.0,
+        omega_lower: FloatLike = 0.0,
         # NRSur7dq4-specific dynamics parameters
-        init_quat: Float[Array, " n_quat"] = jnp.array([1.0, 0.0, 0.0, 0.0]),
+        init_quat: Float[Array, " n_quat"] = _DEFAULT_INIT_QUAT,
         init_orb_phase: float = 0.0,
     ) -> tuple[Float[Array, " n_sample"], Float[Array, " n_sample"]]:
         """
@@ -1220,7 +1232,8 @@ class NRSur7dq4Model(WaveformModel):
         h_im = jnp.sum(h_im_per_mode, axis=0)
 
         # Find t_lower from the orbital frequency trajectory (Omega_interp[:, 4] = orb phase)
-        orb_freq = jnp.gradient(Omega_interp[:, 4], self.data.sur_time)
+        orb_freq = jnp.asarray(jnp.gradient(Omega_interp[:, 4], self.data.sur_time))
+        omega_lower = jnp.asarray(omega_lower)
         in_band = orb_freq >= omega_lower
         t_lower_m = self.data.sur_time[jnp.argmax(in_band)]
 

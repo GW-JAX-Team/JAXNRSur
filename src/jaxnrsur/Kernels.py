@@ -7,8 +7,9 @@ for Gaussian process models.
 """
 
 from abc import abstractmethod
-import jax.numpy as jnp
+
 import equinox as eqx
+import jax.numpy as jnp
 from jaxtyping import Array, Float
 
 

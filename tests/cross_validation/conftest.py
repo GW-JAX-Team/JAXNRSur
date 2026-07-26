@@ -7,13 +7,12 @@ and pass/fail status per model.
 
 import json
 import platform
-from datetime import datetime
+from datetime import UTC, datetime
 from itertools import groupby
 from pathlib import Path
 
 import jax
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Session-level results store
@@ -90,7 +89,7 @@ def _hardware_info() -> dict:
         "jax_version": jax.__version__,
         "float_dtype": str(jnp.zeros(1).dtype),
         "x64_enabled": bool(jax.config.jax_enable_x64),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC"),
     }
 
 

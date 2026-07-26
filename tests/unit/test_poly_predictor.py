@@ -2,7 +2,6 @@
 
 import jax
 import jax.numpy as jnp
-import pytest
 
 from jaxnrsur.PolyPredictor import PolyPredictor, stable_power
 

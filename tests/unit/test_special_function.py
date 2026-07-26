@@ -1,6 +1,8 @@
 import math
-import pytest
+
 import jax
+import pytest
+
 from jaxnrsur.special_function import comb, effective_spin
 
 
@@ -18,9 +20,9 @@ class TestComb:
     def test_basic(self, N, k, expected):
         assert comb(N, k) == pytest.approx(expected)
 
-    @pytest.mark.parametrize("N", range(0, 11))
+    @pytest.mark.parametrize("N", range(11))
     def test_compare_math(self, N):
-        for k in range(0, N + 1):
+        for k in range(N + 1):
             expected = math.comb(N, k)
             result = comb(N, k)
             assert result == pytest.approx(expected), f"comb({N},{k})"

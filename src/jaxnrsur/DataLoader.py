@@ -1,8 +1,9 @@
+import os
+
+import equinox as eqx
 import h5py
 import requests
-import os
 from jaxtyping import Array, Float
-import equinox as eqx
 
 
 class DataLoader(eqx.Module):
@@ -37,7 +38,7 @@ def download_from_zenodo(url: str, local_filename: str) -> bool:
         bool: True if the download was successful, False otherwise.
     """
     # Send the HTTP request to the URL
-    response = requests.get(url, stream=True)  # type: ignore
+    response = requests.get(url, stream=True)
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -104,15 +105,15 @@ def h5Group_to_dict(h5_group: h5py.Group) -> dict:
         dict: A nested dictionary representation of the HDF5 group.
 
     Raises:
-        ValueError: If an unknown data type is encountered in the group.
+        TypeError: If an unknown data type is encountered in the group.
     """
     result = {}
-    for key in h5_group.keys():
+    for key in h5_group:
         local_data = h5_group[key]
         if isinstance(local_data, h5py.Dataset):
             result[key] = local_data[()]
         elif isinstance(local_data, h5py.Group):
             result[key] = h5Group_to_dict(local_data)
         else:
-            raise ValueError("Unknown data type")
+            raise TypeError("Unknown HDF5 object type")
     return result

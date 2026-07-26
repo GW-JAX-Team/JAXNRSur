@@ -85,9 +85,24 @@ norecursedirs = ["tests/cross_validation"]
 
 [tool.pyright]
 include = ["src"]
+reportUnnecessaryTypeIgnoreComment = "error"
 
 [tool.ruff.lint]
-ignore = ["F722"]
+ignore = ["F722", "UP007", "UP045"]
+
+[tool.ruff.lint.per-file-ignores]
+# These are established public module names; changing their case would break imports.
+"src/jaxnrsur/DataLoader.py" = ["N999"]
+"src/jaxnrsur/EIMPredictor.py" = ["N999"]
+"src/jaxnrsur/Harmonics.py" = ["N999"]
+"src/jaxnrsur/Kernels.py" = ["N999"]
+"src/jaxnrsur/NRHybSur3dq8.py" = ["N999"]
+"src/jaxnrsur/NRSur7dq4.py" = ["N999"]
+"src/jaxnrsur/PolyPredictor.py" = ["N999"]
+"src/jaxnrsur/Spline.py" = ["N999"]
+
+[tool.ty.src]
+include = ["src"]
 
 [tool.coverage.report]
 exclude_also = [

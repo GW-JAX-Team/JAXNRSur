@@ -1,8 +1,10 @@
+from typing import Optional
+
+import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
+
 from jaxnrsur import Kernels
-import equinox as eqx
-from typing import Optional
 
 
 class GaussianProcessRegressor(eqx.Module):

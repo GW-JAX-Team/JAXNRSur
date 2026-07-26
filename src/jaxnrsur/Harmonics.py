@@ -1,6 +1,8 @@
+import equinox as eqx
 import jax.numpy as jnp
 from jaxtyping import Array, Float
-import equinox as eqx
+
+from jaxnrsur.typing import FloatLike
 
 
 def fac(n: int) -> int:
@@ -131,7 +133,7 @@ class SpinWeightedSphericalHarmonics(eqx.Module):
         self.m_mode = m
         self.mm_mode = m_mode
 
-    def __call__(self, theta: float, phi: float) -> Float[Array, " 1"]:
+    def __call__(self, theta: FloatLike, phi: FloatLike) -> Float[Array, " 1"]:
         """Evaluate the spin-weighted spherical harmonic at given angles.
 
         Args:
