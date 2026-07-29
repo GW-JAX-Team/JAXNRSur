@@ -35,7 +35,7 @@ jobs:
           if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
             XVAL=""
             if [[ "${{ github.base_ref }}" == "main" || "${{ github.ref }}" == "refs/heads/main" ]]; then
-              XVAL="tests/cross_validation/ --n-samples 3"
+              XVAL="tests/cross_validation/ --profile ci"
             fi
             uv run pytest --cov=jaxnrsur --cov-report=term-missing tests/unit tests/integration $XVAL
           else

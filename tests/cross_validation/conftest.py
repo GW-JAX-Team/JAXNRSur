@@ -3,9 +3,19 @@
 Collects per-model amplitude/phase statistics from all test_gwsur_* runs and
 prints a formatted summary at the end of the session, including hardware info
 and pass/fail status per model.
+
+Two presets cover the light-CI / comprehensive-run split with a single command:
+
+    uv run pytest tests/cross_validation                        # CI: 3 samples
+    uv run pytest tests/cross_validation --profile full          # full: 200 samples, all CPUs
+
+``--n-samples``/``--workers`` always win when passed explicitly, so a bigger
+node (e.g. many CPU cores alongside a high-end GPU for the JAXNRSur side) can
+go further still, e.g. ``--profile full --n-samples 2000 --workers 64``.
 """
 
 import json
+import os
 import platform
 from datetime import UTC, datetime
 from itertools import groupby
@@ -18,6 +28,15 @@ import pytest
 # Session-level results store
 # ---------------------------------------------------------------------------
 
+_PROFILES = {
+    "ci": {"n_samples": 3, "workers": 1},
+    # gwsurrogate (the reference) is CPU-only, so `workers` scales with CPU
+    # count; JAXNRSur's own evaluation already uses whatever JAX device is
+    # present (see the jit+vmap/lax.map batching in test_gwsur_overlap.py),
+    # so a high-end GPU node benefits automatically without a separate flag.
+    "full": {"n_samples": 200, "workers": os.cpu_count() or 1},
+}
+
 
 def pytest_configure(config):
     config._cross_val_results = []
@@ -25,27 +44,39 @@ def pytest_configure(config):
 
 def pytest_addoption(parser):
     parser.addoption(
+        "--profile",
+        choices=sorted(_PROFILES),
+        default="ci",
+        help="Preset defaults for --n-samples/--workers (default: ci)",
+    )
+    parser.addoption(
         "--n-samples",
         type=int,
-        default=10,
-        help="Number of random parameter sets per model (default: 10)",
+        default=None,
+        help="Number of random parameter sets per model (default: from --profile)",
     )
     parser.addoption(
         "--workers",
         type=int,
-        default=1,
-        help="Parallel workers for gwsurrogate evaluation (default: 1, use CPU count on GPU nodes)",
+        default=None,
+        help="Parallel workers for gwsurrogate evaluation (default: from --profile)",
     )
 
 
 @pytest.fixture(scope="session")
 def n_samples(request):
-    return request.config.getoption("--n-samples")
+    explicit = request.config.getoption("--n-samples")
+    if explicit is not None:
+        return explicit
+    return _PROFILES[request.config.getoption("--profile")]["n_samples"]
 
 
 @pytest.fixture(scope="session")
 def workers(request):
-    return request.config.getoption("--workers")
+    explicit = request.config.getoption("--workers")
+    if explicit is not None:
+        return explicit
+    return _PROFILES[request.config.getoption("--profile")]["workers"]
 
 
 @pytest.fixture(scope="session")
@@ -128,10 +159,12 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         f"{'PhMean(°)':>{num_w}}"
         f"{'PhStd(°)':>{num_w}}"
         f"{'MaxAbsErr':>{num_w}}"
+        f"{'OverlapLoss':>{num_w}}"
+        f"{'RelNormErr':>{num_w}}"
         f"{'Status':>{9}}"
     )
     terminalreporter.write_line(header)
-    terminalreporter.write_line("-" * (col_w + num_w * 7 + 9))
+    terminalreporter.write_line("-" * (col_w + num_w * 9 + 9))
 
     all_passed = True
     for r in results:
@@ -147,11 +180,13 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
             f"{r['phase_mean']:>{num_w}.4f}"
             f"{r['phase_std']:>{num_w}.4f}"
             f"{r.get('max_abs_err', float('nan')):>{num_w}.2e}"
+            f"{r.get('overlap_loss', float('nan')):>{num_w}.2e}"
+            f"{r.get('relative_norm_error', float('nan')):>{num_w}.2e}"
             f"{status:>{9}}"
         )
         terminalreporter.write_line(row)
 
-    terminalreporter.write_line("-" * (col_w + num_w * 7 + 9))
+    terminalreporter.write_line("-" * (col_w + num_w * 9 + 9))
     overall = "ALL PASSED" if all_passed else "SOME FAILED"
     terminalreporter.write_line(f"Overall: {overall}")
     terminalreporter.write_sep("=", "")
