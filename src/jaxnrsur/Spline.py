@@ -121,6 +121,15 @@ class CubicSpline:
         self.y_grid = y
 
         assert len(x) == len(y), "x and y must have the same length"
+        if factorization is not None and x.shape != factorization.x_grid.shape:
+            # Value equality isn't checked here: get_value() evaluates coeff
+            # (built from factorization.x_grid) against self.x_grid, so a
+            # same-length but different-valued grid would silently misbehave.
+            # A value check would need eqx.error_if to stay jit/vmap-safe,
+            # since these constructors run inside vmap/jit in NRHybSur3dq8Model.
+            raise ValueError(
+                "factorization grid shape does not match the provided x grid"
+            )
         if factorization is None:
             self.coeff = self.build_rep(x, y)
         else:

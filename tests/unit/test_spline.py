@@ -1,7 +1,9 @@
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 import pytest
+from scipy.interpolate import CubicSpline as ScipyCubicSpline
 
 from jaxnrsur.Spline import CubicSpline, CubicSplineFactorization
 
@@ -59,7 +61,9 @@ def test_reused_factorization_matches_default():
     x_test = jnp.linspace(0, 1, 50)
     factorization = CubicSplineFactorization(x_grid)
     for y_grid in (jnp.sin(x_grid), jnp.exp(x_grid)):
-        expected = CubicSpline(x_grid, y_grid)(x_test)
+        expected = ScipyCubicSpline(
+            np.asarray(x_grid), np.asarray(y_grid), bc_type="natural"
+        )(np.asarray(x_test))
         actual = CubicSpline(x_grid, y_grid, factorization)(x_test)
         assert jnp.allclose(actual, expected, atol=1e-8)
 
