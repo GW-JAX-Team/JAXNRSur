@@ -41,7 +41,6 @@ Both presets accept overrides for finer control, e.g. on a bigger node:
 """
 
 import multiprocessing
-import signal
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -62,7 +61,6 @@ gwsurrogate = pytest.importorskip("gwsurrogate")
 # ---------------------------------------------------------------------------
 
 _DT = 1.0 / 4096  # time step (s)
-_SAMPLE_TIMEOUT_S = 120  # per-sample wall-clock timeout (seconds)
 _EXPECTED_EVALUATION_ERRORS = (
     ArithmeticError,
     KeyError,
@@ -123,27 +121,6 @@ _NRHYBSUR3DQ8_CFG = {
     "overlap_loss_threshold": 1e-11,
     "relative_norm_error_threshold": 1e-6,
 }
-
-
-# ---------------------------------------------------------------------------
-# Timeout helper (Unix SIGALRM)
-# ---------------------------------------------------------------------------
-
-
-class _SampleTimeout(Exception):
-    pass
-
-
-def _arm_timeout(seconds: int) -> None:
-    def _handler(signum, frame):
-        raise _SampleTimeout(f"timed out after {seconds}s")
-
-    signal.signal(signal.SIGALRM, _handler)
-    signal.alarm(seconds)
-
-
-def _disarm_timeout() -> None:
-    signal.alarm(0)
 
 
 # ---------------------------------------------------------------------------
@@ -484,53 +461,117 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
             )
 
     else:
-        # NRSur7dq4 (or fallback): variable-length time arrays per sample.
-        # JIT-compile once; JAX recompiles only when time-array shape changes.
-        _fn = eqx.filter_jit(lambda t, p: wrapper.get_waveform_td(t, p, f_lower=0.0))
-        for i in valid_idx:
+        # NRSur7dq4 (or fallback): variable-length time arrays per sample --
+        # gwsurrogate's arrays share dt=_DT but differ in length (mass-dependent
+        # start time). Pad every sample's time array to the longest one with more
+        # of the same dt spacing (points past the surrogate's valid range are
+        # masked to zero by get_waveform_geometric, and are dropped below before
+        # comparison anyway) so the whole batch can be evaluated with a single
+        # jit+vmap compile, matching the NRHybSur3dq8 branch above instead of
+        # recompiling for every distinct shape.
+        n_valid = len(valid_idx)
+        max_len = max((len(gwsur_outputs[i][0]) for i in valid_idx), default=0)
+
+        def _pad_time(t_gws: np.ndarray) -> np.ndarray:
+            if len(t_gws) == max_len:
+                return t_gws
+            tail = t_gws[-1] + _DT * np.arange(1, max_len - len(t_gws) + 1)
+            return np.concatenate([t_gws, tail])
+
+        t_batch = jnp.array(
+            np.stack([_pad_time(gwsur_outputs[i][0]) for i in valid_idx])
+            if n_valid
+            else np.zeros((0, 0))
+        )
+        params_batch = jnp.stack(
+            [_build_params_full(params_list[i], cfg) for i in valid_idx]
+        )
+
+        def _eval_single(t_row, p_full):
+            hp, hc = wrapper.get_waveform_td(t_row, p_full, f_lower=0.0)
+            return hp - 1j * hc
+
+        def _is_oom(e: Exception) -> bool:
+            msg = str(e)
+            return "RESOURCE_EXHAUSTED" in msg or "Out of memory" in msg
+
+        def _run_batch(batch_size: int | None):
+            if batch_size is None:
+                fn = eqx.filter_jit(jax.vmap(_eval_single))
+                return np.array(fn(t_batch, params_batch))
+            fn = eqx.filter_jit(
+                lambda ts, ps: jax.lax.map(
+                    lambda args: _eval_single(*args), (ts, ps), batch_size=batch_size
+                )
+            )
+            return np.array(fn(t_batch, params_batch))
+
+        h_jax_batch = np.zeros((0, max_len), dtype=complex)
+        if n_valid:
+            batch_size: int | None = None
+            print(
+                f"\n  [{model_name}] JAXNRSur: compiling+evaluating"
+                f" {n_valid} samples with jit+vmap ...",
+                flush=True,
+            )
+            while True:
+                try:
+                    h_jax_batch = _run_batch(batch_size)
+                    break
+                except Exception as exc:
+                    if not _is_oom(exc):
+                        raise
+                    next_bs = max(1, (n_valid if batch_size is None else batch_size) // 2)
+                    if batch_size is not None and next_bs == batch_size:
+                        # Even batch_size=1 OOMs; fall back to per-sample JIT loop.
+                        print(
+                            "\n  [OOM] falling back to per-sample jit loop ...",
+                            flush=True,
+                        )
+                        _fn_single = eqx.filter_jit(_eval_single)
+                        h_jax_batch = np.stack(
+                            [
+                                np.array(_fn_single(t_batch[k], params_batch[k]))
+                                for k in range(n_valid)
+                            ]
+                        )
+                        break
+                    print(
+                        f"\n  [OOM] retrying with lax.map(batch_size={next_bs}) ...",
+                        flush=True,
+                    )
+                    batch_size = next_bs
+
+        for k, i in enumerate(valid_idx):
             p = params_list[i]
             t_gws, h_gws, _ = gwsur_outputs[i]
             print(
-                f"  [{i + 1:2d}/{n_samples}] M={p['M_tot']:.1f} q={p['q']:.2f} ...",
+                f"  [{i + 1:2d}/{n_samples}] M={p['M_tot']:.1f} q={p['q']:.2f}",
                 end="",
                 flush=True,
             )
-            try:
-                _arm_timeout(_SAMPLE_TIMEOUT_S)
-                params_full = _build_params_full(p, cfg)
-                hp, hc = _fn(jnp.array(t_gws), params_full)
-                h_jax = np.array(hp) - 1j * np.array(hc)
-                _disarm_timeout()
+            h_jax = h_jax_batch[k, : len(t_gws)]
+            result = _compare(h_jax, h_gws)
+            if not result["ok"]:
+                print(f"  SKIP: {result['reason']}")
+                failed.append((i, result["reason"]))
+                continue
 
-                result = _compare(h_jax, h_gws)
-                if not result["ok"]:
-                    print(f"  SKIP: {result['reason']}")
-                    failed.append((i, result["reason"]))
-                    continue
-
-                amp_means.append(result["amp_mean"])
-                amp_stds.append(result["amp_std"])
-                phase_means.append(result["phase_mean"])
-                phase_stds.append(result["phase_std"])
-                max_abs_errs.append(result["max_abs_err"])
-                overlap_losses.append(result["overlap_loss"])
-                rel_norm_errs.append(result["relative_norm_error"])
-                per_sample.append({**p, **result})
-                print(
-                    f"  amp={result['amp_mean']:.6f}±{result['amp_std']:.2e}"
-                    f"  ph={result['phase_mean']:+.4f}°±{result['phase_std']:.4f}°"
-                    f"  max_err={result['max_abs_err']:.2e}"
-                    f"  overlap_loss={result['overlap_loss']:.2e}"
-                    f"  n={result['n_compare']}"
-                )
-            except _SampleTimeout as exc:
-                _disarm_timeout()
-                print(f"  TIMEOUT: {exc}")
-                failed.append((i, str(exc)))
-            except _EXPECTED_EVALUATION_ERRORS as exc:
-                _disarm_timeout()
-                print(f"  FAILED: {exc}")
-                failed.append((i, str(exc)))
+            amp_means.append(result["amp_mean"])
+            amp_stds.append(result["amp_std"])
+            phase_means.append(result["phase_mean"])
+            phase_stds.append(result["phase_std"])
+            max_abs_errs.append(result["max_abs_err"])
+            overlap_losses.append(result["overlap_loss"])
+            rel_norm_errs.append(result["relative_norm_error"])
+            per_sample.append({**p, **result})
+            print(
+                f"  amp={result['amp_mean']:.6f}±{result['amp_std']:.2e}"
+                f"  ph={result['phase_mean']:+.4f}°±{result['phase_std']:.4f}°"
+                f"  max_err={result['max_abs_err']:.2e}"
+                f"  overlap_loss={result['overlap_loss']:.2e}"
+                f"  n={result['n_compare']}"
+            )
 
     n_ok = len(amp_means)
     if n_ok == 0:
