@@ -7,10 +7,14 @@ on:
     branches: [main]
   release:
     types: [published]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -19,8 +23,8 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
       - name: Set up Python ${{ matrix.python-version }}
@@ -34,8 +38,8 @@ jobs:
         run: |
           if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
             XVAL=""
-            if [[ "${{ github.base_ref }}" == "main" || "${{ github.ref }}" == "refs/heads/main" ]]; then
-              XVAL="tests/cross_validation/ --n-samples 3"
+            if [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.base_ref }}" == "main" || "${{ github.ref }}" == "refs/heads/dependency-autoupdate" ]]; then
+              XVAL="tests/cross_validation/ --profile ci"
             fi
             uv run pytest --cov=jaxnrsur --cov-report=term-missing tests/unit tests/integration $XVAL
           else
@@ -51,8 +55,8 @@ jobs:
   pre-commit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
       - name: Install dependencies
@@ -68,10 +72,10 @@ jobs:
       name: pypi
       url: https://pypi.org/project/JAXNRSur/
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Build package
         run: uv build
       - name: Publish to PyPI
@@ -87,11 +91,11 @@ jobs:
       name: testpypi
       url: https://test.pypi.org/project/jaxnrsur/
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v9.0.0
       - name: Build package
         run: uv build
       - name: Publish to TestPyPI

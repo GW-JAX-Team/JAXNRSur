@@ -82,6 +82,9 @@ raw-options = { local_scheme = "no-local-version" }
 [tool.pytest.ini_options]
 pythonpath = ["."]
 norecursedirs = ["tests/cross_validation"]
+markers = [
+    "cross_validation: compares JAXNRSur waveform output against gwsurrogate (run explicitly via `pytest tests/cross_validation`)",
+]
 
 [tool.pyright]
 include = ["src"]

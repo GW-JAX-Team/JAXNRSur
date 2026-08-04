@@ -20,12 +20,27 @@ Phi conventions (empirically verified with f_low=0):
 
 Comparison region: samples where both |h_jax| and |h_gwsur| > 1% of peak.
 
+Metrics: amplitude-ratio and phase-difference stats over that region, plus
+`overlap_loss`/`relative_norm_error` from tests/cross_validation/metrics.py --
+the same time-domain mismatch definition ripple uses in
+tests/helpers/metrics.py (`time_domain_overlap_loss`/`relative_norm_error`),
+scored separately on hp/hc and kept worst-of-two per sample.
+
 Requires: gwsurrogate installed and surrogate data files present.
-Run with: .venv/bin/pytest tests/cross_validation/ --n-samples=3
+
+Run with (light CI preset, 3 samples -- matches CI.yml):
+    uv run pytest tests/cross_validation
+
+Run with (full preset, 200 samples, all CPU cores as gwsurrogate workers --
+for a bigger, more comprehensive sweep, e.g. on a cluster node or a machine
+with a high-end GPU for the JAXNRSur side):
+    uv run pytest tests/cross_validation --profile full
+
+Both presets accept overrides for finer control, e.g. on a bigger node:
+    uv run pytest tests/cross_validation --profile full --n-samples 2000 --workers 64
 """
 
 import multiprocessing
-import signal
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -33,6 +48,8 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
+
+from tests.cross_validation.metrics import relative_norm_error, time_domain_overlap_loss
 
 jax.config.update("jax_enable_x64", True)
 
@@ -44,7 +61,6 @@ gwsurrogate = pytest.importorskip("gwsurrogate")
 # ---------------------------------------------------------------------------
 
 _DT = 1.0 / 4096  # time step (s)
-_SAMPLE_TIMEOUT_S = 120  # per-sample wall-clock timeout (seconds)
 _EXPECTED_EVALUATION_ERRORS = (
     ArithmeticError,
     KeyError,
@@ -73,6 +89,10 @@ _NRSUR7DQ4_CFG = {
     "phase_mean_threshold": 1e-6,  # degrees
     "phase_std_threshold": 1e-6,  # degrees
     "max_abs_err_threshold": 1e-10,
+    # Observed worst-of-20 ~4e-27 (overlap_loss) / ~1e-15 (rel_norm_err); ~5-7
+    # orders of margin above, same policy as the other thresholds in this block.
+    "overlap_loss_threshold": 1e-20,
+    "relative_norm_error_threshold": 1e-10,
 }
 
 _NRHYBSUR3DQ8_CFG = {
@@ -96,28 +116,11 @@ _NRHYBSUR3DQ8_CFG = {
     "phase_mean_threshold": 1e-3,  # degrees
     "phase_std_threshold": 1e-3,  # degrees
     "max_abs_err_threshold": 1e-5,
+    # Observed worst-of-20 ~1.6e-15 (overlap_loss) / ~1e-9 (rel_norm_err); ~4
+    # orders of margin above, matching this model's other thresholds.
+    "overlap_loss_threshold": 1e-11,
+    "relative_norm_error_threshold": 1e-6,
 }
-
-
-# ---------------------------------------------------------------------------
-# Timeout helper (Unix SIGALRM)
-# ---------------------------------------------------------------------------
-
-
-class _SampleTimeout(Exception):
-    pass
-
-
-def _arm_timeout(seconds: int) -> None:
-    def _handler(signum, frame):
-        raise _SampleTimeout(f"timed out after {seconds}s")
-
-    signal.signal(signal.SIGALRM, _handler)
-    signal.alarm(seconds)
-
-
-def _disarm_timeout() -> None:
-    signal.alarm(0)
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +260,20 @@ def _compare(h_jax: np.ndarray, h_gws: np.ndarray) -> dict:
     phase_deg = np.angle(h_jax[mask] * np.conj(h_gws[mask])) * 180.0 / np.pi
     max_abs_err = float(np.max(np.abs(h_jax[mask] - h_gws[mask])) / peak)
 
+    # h = hp - i*hc (see module docstring); ripple's TD metrics require real,
+    # same-grid series, so score each polarization separately and keep the
+    # worse of the two, matching how ripple scores hp/hc for its FD overlap test.
+    hp_jax, hc_jax = h_jax[mask].real, -h_jax[mask].imag
+    hp_gws, hc_gws = h_gws[mask].real, -h_gws[mask].imag
+    overlap_loss = max(
+        time_domain_overlap_loss(hp_jax, hp_gws),
+        time_domain_overlap_loss(hc_jax, hc_gws),
+    )
+    rel_norm_err = max(
+        relative_norm_error(hp_jax, hp_gws),
+        relative_norm_error(hc_jax, hc_gws),
+    )
+
     return {
         "ok": True,
         "n_compare": int(mask.sum()),
@@ -265,6 +282,8 @@ def _compare(h_jax: np.ndarray, h_gws: np.ndarray) -> dict:
         "phase_mean": float(phase_deg.mean()),
         "phase_std": float(phase_deg.std()),
         "max_abs_err": max_abs_err,
+        "overlap_loss": overlap_loss,
+        "relative_norm_error": rel_norm_err,
     }
 
 
@@ -295,6 +314,7 @@ def _gwsur_worker_fn(args: tuple) -> tuple:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.cross_validation
 @pytest.mark.parametrize(
     "cfg",
     [
@@ -339,6 +359,7 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
     wrapper = _build_jaxnrsur_wrapper(model_name)
 
     amp_means, amp_stds, phase_means, phase_stds, max_abs_errs = [], [], [], [], []
+    overlap_losses, rel_norm_errs = [], []
     per_sample: list[dict] = []
     failed: list[tuple[int, str]] = []
 
@@ -428,59 +449,129 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
             phase_means.append(result["phase_mean"])
             phase_stds.append(result["phase_std"])
             max_abs_errs.append(result["max_abs_err"])
+            overlap_losses.append(result["overlap_loss"])
+            rel_norm_errs.append(result["relative_norm_error"])
             per_sample.append({**p, **result})
             print(
                 f"  amp={result['amp_mean']:.6f}±{result['amp_std']:.2e}"
                 f"  ph={result['phase_mean']:+.4f}°±{result['phase_std']:.4f}°"
                 f"  max_err={result['max_abs_err']:.2e}"
+                f"  overlap_loss={result['overlap_loss']:.2e}"
                 f"  n={result['n_compare']}"
             )
 
     else:
-        # NRSur7dq4 (or fallback): variable-length time arrays per sample.
-        # JIT-compile once; JAX recompiles only when time-array shape changes.
-        _fn = eqx.filter_jit(lambda t, p: wrapper.get_waveform_td(t, p, f_lower=0.0))
-        for i in valid_idx:
+        # NRSur7dq4 (or fallback): variable-length time arrays per sample --
+        # gwsurrogate's arrays share dt=_DT but differ in length (mass-dependent
+        # start time). Pad every sample's time array to the longest one with more
+        # of the same dt spacing (points past the surrogate's valid range are
+        # masked to zero by get_waveform_geometric, and are dropped below before
+        # comparison anyway) so the whole batch can be evaluated with a single
+        # jit+vmap compile, matching the NRHybSur3dq8 branch above instead of
+        # recompiling for every distinct shape.
+        n_valid = len(valid_idx)
+        max_len = max((len(gwsur_outputs[i][0]) for i in valid_idx), default=0)
+
+        def _pad_time(t_gws: np.ndarray) -> np.ndarray:
+            if len(t_gws) == max_len:
+                return t_gws
+            tail = t_gws[-1] + _DT * np.arange(1, max_len - len(t_gws) + 1)
+            return np.concatenate([t_gws, tail])
+
+        t_batch = jnp.array(
+            np.stack([_pad_time(gwsur_outputs[i][0]) for i in valid_idx])
+            if n_valid
+            else np.zeros((0, 0))
+        )
+        params_batch = jnp.stack(
+            [_build_params_full(params_list[i], cfg) for i in valid_idx]
+        )
+
+        def _eval_single(t_row, p_full):
+            hp, hc = wrapper.get_waveform_td(t_row, p_full, f_lower=0.0)
+            return hp - 1j * hc
+
+        def _is_oom(e: Exception) -> bool:
+            msg = str(e)
+            return "RESOURCE_EXHAUSTED" in msg or "Out of memory" in msg
+
+        def _run_batch(batch_size: int | None):
+            if batch_size is None:
+                fn = eqx.filter_jit(jax.vmap(_eval_single))
+                return np.array(fn(t_batch, params_batch))
+            fn = eqx.filter_jit(
+                lambda ts, ps: jax.lax.map(
+                    lambda args: _eval_single(*args), (ts, ps), batch_size=batch_size
+                )
+            )
+            return np.array(fn(t_batch, params_batch))
+
+        h_jax_batch = np.zeros((0, max_len), dtype=complex)
+        if n_valid:
+            batch_size: int | None = None
+            print(
+                f"\n  [{model_name}] JAXNRSur: compiling+evaluating"
+                f" {n_valid} samples with jit+vmap ...",
+                flush=True,
+            )
+            while True:
+                try:
+                    h_jax_batch = _run_batch(batch_size)
+                    break
+                except Exception as exc:
+                    if not _is_oom(exc):
+                        raise
+                    next_bs = max(1, (n_valid if batch_size is None else batch_size) // 2)
+                    if batch_size is not None and next_bs == batch_size:
+                        # Even batch_size=1 OOMs; fall back to per-sample JIT loop.
+                        print(
+                            "\n  [OOM] falling back to per-sample jit loop ...",
+                            flush=True,
+                        )
+                        _fn_single = eqx.filter_jit(_eval_single)
+                        h_jax_batch = np.stack(
+                            [
+                                np.array(_fn_single(t_batch[k], params_batch[k]))
+                                for k in range(n_valid)
+                            ]
+                        )
+                        break
+                    print(
+                        f"\n  [OOM] retrying with lax.map(batch_size={next_bs}) ...",
+                        flush=True,
+                    )
+                    batch_size = next_bs
+
+        for k, i in enumerate(valid_idx):
             p = params_list[i]
             t_gws, h_gws, _ = gwsur_outputs[i]
             print(
-                f"  [{i + 1:2d}/{n_samples}] M={p['M_tot']:.1f} q={p['q']:.2f} ...",
+                f"  [{i + 1:2d}/{n_samples}] M={p['M_tot']:.1f} q={p['q']:.2f}",
                 end="",
                 flush=True,
             )
-            try:
-                _arm_timeout(_SAMPLE_TIMEOUT_S)
-                params_full = _build_params_full(p, cfg)
-                hp, hc = _fn(jnp.array(t_gws), params_full)
-                h_jax = np.array(hp) - 1j * np.array(hc)
-                _disarm_timeout()
+            h_jax = h_jax_batch[k, : len(t_gws)]
+            result = _compare(h_jax, h_gws)
+            if not result["ok"]:
+                print(f"  SKIP: {result['reason']}")
+                failed.append((i, result["reason"]))
+                continue
 
-                result = _compare(h_jax, h_gws)
-                if not result["ok"]:
-                    print(f"  SKIP: {result['reason']}")
-                    failed.append((i, result["reason"]))
-                    continue
-
-                amp_means.append(result["amp_mean"])
-                amp_stds.append(result["amp_std"])
-                phase_means.append(result["phase_mean"])
-                phase_stds.append(result["phase_std"])
-                max_abs_errs.append(result["max_abs_err"])
-                per_sample.append({**p, **result})
-                print(
-                    f"  amp={result['amp_mean']:.6f}±{result['amp_std']:.2e}"
-                    f"  ph={result['phase_mean']:+.4f}°±{result['phase_std']:.4f}°"
-                    f"  max_err={result['max_abs_err']:.2e}"
-                    f"  n={result['n_compare']}"
-                )
-            except _SampleTimeout as exc:
-                _disarm_timeout()
-                print(f"  TIMEOUT: {exc}")
-                failed.append((i, str(exc)))
-            except _EXPECTED_EVALUATION_ERRORS as exc:
-                _disarm_timeout()
-                print(f"  FAILED: {exc}")
-                failed.append((i, str(exc)))
+            amp_means.append(result["amp_mean"])
+            amp_stds.append(result["amp_std"])
+            phase_means.append(result["phase_mean"])
+            phase_stds.append(result["phase_std"])
+            max_abs_errs.append(result["max_abs_err"])
+            overlap_losses.append(result["overlap_loss"])
+            rel_norm_errs.append(result["relative_norm_error"])
+            per_sample.append({**p, **result})
+            print(
+                f"  amp={result['amp_mean']:.6f}±{result['amp_std']:.2e}"
+                f"  ph={result['phase_mean']:+.4f}°±{result['phase_std']:.4f}°"
+                f"  max_err={result['max_abs_err']:.2e}"
+                f"  overlap_loss={result['overlap_loss']:.2e}"
+                f"  n={result['n_compare']}"
+            )
 
     n_ok = len(amp_means)
     if n_ok == 0:
@@ -491,6 +582,10 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
     overall_phase_mean = float(np.mean(np.abs(phase_means)))
     overall_phase_std = float(np.mean(phase_stds))
     overall_max_abs_err = float(np.max(max_abs_errs))
+    # Worst-case, not mean: a single badly-mismatched sample should fail the run
+    # even if it's averaged out by many good ones (matches max_abs_err's policy).
+    overall_overlap_loss = float(np.max(overlap_losses))
+    overall_rel_norm_err = float(np.max(rel_norm_errs))
 
     print(f"\n{model_name} vs gwsurrogate (TD, {n_ok}/{n_samples} ok):")
     print(f"  amp mean: {overall_amp_mean:.6f}  amp std (avg): {overall_amp_std:.2e}")
@@ -498,12 +593,18 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
         f"  |phase mean| avg: {overall_phase_mean:.6f}°  phase std avg: {overall_phase_std:.6f}°"
     )
     print(f"  max |h_jax - h_gws| / peak (worst sample): {overall_max_abs_err:.2e}")
+    print(
+        f"  time-domain overlap loss (ripple metric, worst sample): {overall_overlap_loss:.2e}"
+        f"  relative norm error (worst sample): {overall_rel_norm_err:.2e}"
+    )
 
     amp_std_thr = cfg["amp_std_threshold"]
     amp_mean_tol = cfg["amp_mean_tol"]
     phase_mean_thr = cfg["phase_mean_threshold"]
     phase_std_thr = cfg["phase_std_threshold"]
     max_abs_err_thr = cfg["max_abs_err_threshold"]
+    overlap_loss_thr = cfg["overlap_loss_threshold"]
+    rel_norm_err_thr = cfg["relative_norm_error_threshold"]
 
     results_dir = Path(__file__).parent / "results" / f"n{n_samples}"
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -512,7 +613,8 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
         f.write(
             "M_tot,q,iota,"
             "chiA_x,chiA_y,chiA_z,chiB_x,chiB_y,chiB_z,"
-            "amp_mean,amp_std,phase_mean_deg,phase_std_deg,max_abs_err\n"
+            "amp_mean,amp_std,phase_mean_deg,phase_std_deg,max_abs_err,"
+            "overlap_loss,relative_norm_error\n"
         )
         for s in per_sample:
             cA, cB = s["chiA"], s["chiB"]
@@ -521,7 +623,8 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
                 f"{cA[0]:.6f},{cA[1]:.6f},{cA[2]:.6f},"
                 f"{cB[0]:.6f},{cB[1]:.6f},{cB[2]:.6f},"
                 f"{s['amp_mean']:.8f},{s['amp_std']:.6e},"
-                f"{s['phase_mean']:.6f},{s['phase_std']:.6f},{s['max_abs_err']:.6e}\n"
+                f"{s['phase_mean']:.6f},{s['phase_std']:.6f},{s['max_abs_err']:.6e},"
+                f"{s['overlap_loss']:.6e},{s['relative_norm_error']:.6e}\n"
             )
     print(f"  Results saved to: {results_file}")
 
@@ -532,6 +635,8 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
         and overall_phase_mean < phase_mean_thr
         and overall_phase_std < phase_std_thr
         and overall_max_abs_err < max_abs_err_thr
+        and overall_overlap_loss < overlap_loss_thr
+        and overall_rel_norm_err < rel_norm_err_thr
     )
 
     cross_val_results.append(
@@ -545,6 +650,8 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
             "phase_mean": overall_phase_mean,
             "phase_std": overall_phase_std,
             "max_abs_err": overall_max_abs_err,
+            "overlap_loss": overall_overlap_loss,
+            "relative_norm_error": overall_rel_norm_err,
             "amp_threshold": amp_std_thr,
             "phase_threshold": phase_std_thr,
             "passed": passed,
@@ -569,4 +676,10 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
     )
     assert overall_phase_std < phase_std_thr, (
         f"{model_name}: phase std {overall_phase_std:.6f}° > {phase_std_thr}°"
+    )
+    assert overall_overlap_loss < overlap_loss_thr, (
+        f"{model_name}: time-domain overlap loss {overall_overlap_loss:.2e} > {overlap_loss_thr:.0e}"
+    )
+    assert overall_rel_norm_err < rel_norm_err_thr, (
+        f"{model_name}: relative norm error {overall_rel_norm_err:.2e} > {rel_norm_err_thr:.0e}"
     )
