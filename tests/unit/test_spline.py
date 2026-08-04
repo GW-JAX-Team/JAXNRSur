@@ -82,3 +82,17 @@ def test_reused_factorization_grad_and_vmap():
     assert values.shape == (2, 50)
     assert gradient.shape == x_grid.shape
     assert jnp.all(jnp.isfinite(gradient))
+
+
+def test_factorization_shape_mismatch_raises():
+    factorization = CubicSplineFactorization(jnp.linspace(0, 1, 20))
+    x_grid = jnp.linspace(0, 1, 10)
+    with pytest.raises(ValueError, match="shape"):
+        CubicSpline(x_grid, x_grid**2, factorization)
+
+
+def test_factorization_value_mismatch_raises():
+    factorization = CubicSplineFactorization(jnp.linspace(0, 1, 20))
+    x_grid = jnp.linspace(0, 2, 20)  # same shape as factorization, different values
+    with pytest.raises(eqx.EquinoxRuntimeError, match="values"):
+        CubicSpline(x_grid, x_grid**2, factorization)

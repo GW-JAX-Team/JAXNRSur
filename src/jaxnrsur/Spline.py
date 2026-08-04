@@ -116,23 +116,29 @@ class CubicSpline:
             factorization (CubicSplineFactorization, optional): Reusable
                 factorization for the same x grid.
         """
-        self.x_grid = x
         self.diff_x = jnp.diff(x)
         self.y_grid = y
 
         assert len(x) == len(y), "x and y must have the same length"
-        if factorization is not None and x.shape != factorization.x_grid.shape:
-            # Value equality isn't checked here: get_value() evaluates coeff
-            # (built from factorization.x_grid) against self.x_grid, so a
-            # same-length but different-valued grid would silently misbehave.
-            # A value check would need eqx.error_if to stay jit/vmap-safe,
-            # since these constructors run inside vmap/jit in NRHybSur3dq8Model.
-            raise ValueError(
-                "factorization grid shape does not match the provided x grid"
-            )
         if factorization is None:
+            self.x_grid = x
             self.coeff = self.build_rep(x, y)
         else:
+            if x.shape != factorization.x_grid.shape:
+                raise ValueError(
+                    "factorization grid shape does not match the provided x grid"
+                )
+            # get_value() evaluates coeff (built from factorization.x_grid)
+            # against self.x_grid, so a same-length but different-valued grid
+            # would silently misbehave. Checked via eqx.error_if (jit/vmap-safe,
+            # since these constructors run inside vmap/jit in NRHybSur3dq8Model)
+            # and threaded into self.x_grid, which get_value() consumes, so the
+            # check survives dead-code elimination.
+            self.x_grid = eqx.error_if(
+                x,
+                jnp.any(x != factorization.x_grid),
+                "factorization grid values do not match the provided x grid",
+            )
             self.coeff = factorization.solve(y)
 
     def __call__(self, x: Float[Array, " n_grid"]) -> Float[Array, " n_grid"]:
