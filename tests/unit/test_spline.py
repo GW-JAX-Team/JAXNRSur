@@ -66,6 +66,8 @@ def test_reused_factorization_matches_default():
         )(np.asarray(x_test))
         actual = CubicSpline(x_grid, y_grid, factorization)(x_test)
         assert jnp.allclose(actual, expected, atol=1e-8)
+        default = CubicSpline(x_grid, y_grid)(x_test)
+        assert jnp.allclose(default, expected, atol=1e-8)
 
 
 def test_reused_factorization_grad_and_vmap():
@@ -96,3 +98,35 @@ def test_factorization_value_mismatch_raises():
     x_grid = jnp.linspace(0, 2, 20)  # same shape as factorization, different values
     with pytest.raises(eqx.EquinoxRuntimeError, match="values"):
         CubicSpline(x_grid, x_grid**2, factorization)
+
+
+def test_factorization_rejects_non_finite_grid():
+    x_grid = jnp.array([0.0, 1.0, jnp.nan, 3.0])
+    with pytest.raises(eqx.EquinoxRuntimeError, match="finite"):
+        CubicSplineFactorization(x_grid)
+
+
+def test_factorization_rejects_duplicate_grid_points():
+    x_grid = jnp.array([0.0, 1.0, 1.0, 2.0])
+    with pytest.raises(eqx.EquinoxRuntimeError, match="increasing"):
+        CubicSplineFactorization(x_grid)
+
+
+def test_factorization_rejects_direction_changing_grid():
+    x_grid = jnp.array([0.0, 1.0, 0.5, 2.0])
+    with pytest.raises(eqx.EquinoxRuntimeError, match="increasing"):
+        CubicSplineFactorization(x_grid)
+
+
+def test_factorization_rejects_duplicate_grid_points_under_jit():
+    x_grid = jnp.array([0.0, 1.0, 1.0, 2.0])
+    build = eqx.filter_jit(lambda x: CubicSplineFactorization(x))
+    with pytest.raises(eqx.EquinoxRuntimeError, match="increasing"):
+        build(x_grid)
+
+
+def test_factorization_rejects_direction_changing_grid_under_jit():
+    x_grid = jnp.array([0.0, 1.0, 0.5, 2.0])
+    build = eqx.filter_jit(lambda x: CubicSplineFactorization(x))
+    with pytest.raises(eqx.EquinoxRuntimeError, match="increasing"):
+        build(x_grid)

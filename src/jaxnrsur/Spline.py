@@ -19,8 +19,12 @@ class CubicSplineFactorization(eqx.Module):
             raise ValueError(
                 "x must be a one-dimensional grid with at least two points"
             )
+        x = eqx.error_if(
+            x, jnp.any(~jnp.isfinite(x)), "x must contain only finite values"
+        )
 
         diff = jnp.diff(x)
+        diff = eqx.error_if(diff, jnp.any(diff <= 0), "x must be strictly increasing")
         diagonal = jnp.ones(len(x), dtype=x.dtype).at[1:-1].set(2.0)
         lower = diff[:-1] / (diff[:-1] + diff[1:])
         upper = diff[1:] / (diff[:-1] + diff[1:])
