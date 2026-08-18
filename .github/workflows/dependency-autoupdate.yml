@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.x"
-      - uses: astral-sh/setup-uv@v9.0.0
+      - uses: astral-sh/setup-uv@v10.0.1
       - run: pip install pre-commit
       - run: pre-commit autoupdate
       - run: uv lock --upgrade
