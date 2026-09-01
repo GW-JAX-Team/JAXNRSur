@@ -27,13 +27,12 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
-      - name: Set up Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
       - name: Install GSL
         if: matrix.python-version == '3.12'
         run: sudo apt-get install -y libgsl-dev
       - name: Install dependencies
-        run: uv sync --python ${{ matrix.python-version }} --group test ${{ matrix.python-version == '3.12' && '--group cross-validation' || '' }}
+        run: uv sync --group test ${{ matrix.python-version == '3.12' && '--group cross-validation' || '' }}
       - name: Run tests
         run: |
           if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
@@ -59,8 +58,9 @@ jobs:
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
+          python-version: "3.12"
       - name: Install dependencies
-        run: uv sync --python 3.12 --group test
+        run: uv sync --group test
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
 

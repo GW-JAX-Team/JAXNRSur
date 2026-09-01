@@ -521,7 +521,9 @@ def test_gwsur_td_agreement(cfg, n_samples, workers, cross_val_results):
                 except Exception as exc:
                     if not _is_oom(exc):
                         raise
-                    next_bs = max(1, (n_valid if batch_size is None else batch_size) // 2)
+                    next_bs = max(
+                        1, (n_valid if batch_size is None else batch_size) // 2
+                    )
                     if batch_size is not None and next_bs == batch_size:
                         # Even batch_size=1 OOMs; fall back to per-sample JIT loop.
                         print(
