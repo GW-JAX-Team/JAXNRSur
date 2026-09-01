@@ -228,11 +228,22 @@ def main() -> None:
         result = []
         for item in nav:
             if isinstance(item, str):
-                result.append(item.replace(".ipynb", ".md") if item.endswith(".ipynb") else item)
+                result.append(
+                    item.replace(".ipynb", ".md") if item.endswith(".ipynb") else item
+                )
             elif isinstance(item, dict):
-                result.append({k: replace_ipynb(v) if isinstance(v, list) else
-                               (v.replace(".ipynb", ".md") if isinstance(v, str) and v.endswith(".ipynb") else v)
-                               for k, v in item.items()})
+                result.append(
+                    {
+                        k: replace_ipynb(v)
+                        if isinstance(v, list)
+                        else (
+                            v.replace(".ipynb", ".md")
+                            if isinstance(v, str) and v.endswith(".ipynb")
+                            else v
+                        )
+                        for k, v in item.items()
+                    }
+                )
             else:
                 result.append(item)
         return result
