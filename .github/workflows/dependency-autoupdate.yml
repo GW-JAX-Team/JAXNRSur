@@ -13,34 +13,42 @@ jobs:
   autoupdate:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-      actions: write
+      contents: read
     steps:
+      - uses: actions/create-github-app-token@v3
+        id: app-token
+        with:
+          client-id: ${{ secrets.AUTOMATION_APP_ID }}  # secret holds the App's Client ID (Iv23...)
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
       - uses: actions/checkout@v7
         with:
           ref: main
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
       - run: uvx pre-commit autoupdate
       - run: uv lock --upgrade
       - name: Open or update a PR with hook/lockfile updates
-        id: commit_update
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           set -euo pipefail
           if git diff --quiet; then
             echo "All hooks and dependencies up to date"
-            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "gw-jax-team-automation[bot]"
+          git config user.email "326235018+gw-jax-team-automation[bot]@users.noreply.github.com"
           git add .pre-commit-config.yaml uv.lock
           git commit -m "[pre-commit] autoupdate hooks and lock file"
-          git push --force origin HEAD:dependency-autoupdate
+          # persist-credentials is off; authenticate this one push with the App token
+          auth=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth}" \
+            push --force origin HEAD:dependency-autoupdate
           existing=$(gh pr list --repo "$GITHUB_REPOSITORY" --base main --head dependency-autoupdate --state open --json number --jq '.[0].number // empty')
           if [ -z "$existing" ]; then
             gh pr create \
@@ -50,9 +58,3 @@ jobs:
               --title "[pre-commit] autoupdate hooks and lock file" \
               --body "Automated weekly update of pre-commit hooks and the uv lockfile. Please review and merge."
           fi
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-      - name: Trigger CI on dependency-autoupdate
-        if: success() && steps.commit_update.outputs.changed == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run CI.yml --ref dependency-autoupdate
