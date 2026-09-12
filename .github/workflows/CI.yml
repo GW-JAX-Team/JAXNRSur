@@ -17,6 +17,19 @@ permissions:
   contents: read
 
 jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install dependencies
+        run: uv sync --group test
+      - name: Run pre-commit
+        run: uv run pre-commit run --all-files
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -51,38 +64,6 @@ jobs:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
         run: uv run coveralls
 
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: astral-sh/setup-uv@v10.0.1
-        with:
-          enable-cache: true
-          python-version: "3.12"
-      - name: Install dependencies
-        run: uv sync --group test
-      - name: Run pre-commit
-        run: uv run pre-commit run --all-files
-
-  publish:
-    needs: [test, pre-commit]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'release'
-    environment:
-      name: pypi
-      url: https://pypi.org/project/JAXNRSur/
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: astral-sh/setup-uv@v10.0.1
-      - name: Build package
-        run: uv build
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-
   publish-testpypi:
     needs: [test, pre-commit]
     runs-on: ubuntu-latest
@@ -104,3 +85,22 @@ jobs:
           repository-url: https://test.pypi.org/legacy/
           password: ${{ secrets.TESTPYPI_API_TOKEN }}
           skip-existing: true
+
+  publish:
+    needs: [test, pre-commit]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    environment:
+      name: pypi
+      url: https://pypi.org/project/JAXNRSur/
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.1
+      - name: Build package
+        run: uv build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
