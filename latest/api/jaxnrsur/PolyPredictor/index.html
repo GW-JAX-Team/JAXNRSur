@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.63">
+      <meta name="generator" content="zensical-0.0.65">
     
     
       
@@ -36,7 +36,7 @@
       
         
       
-      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.10763589.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/modern/main.40d3fdbb.min.css">
       
         
           
@@ -1516,7 +1516,7 @@
       </thead>
       <tbody>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;evaluate_ensemble&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;predictors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PolyPredictor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_predictor&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.evaluate_ensemble">evaluate_ensemble</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="evaluate_ensemble(predictors: PolyPredictor, inputs: Float[Array, &#x27; n_lambda&#x27;]) -&gt; Float[Array, &#x27; n_predictor&#x27;] (jaxnrsur.PolyPredictor.evaluate_ensemble)" href="./#jaxnrsur.PolyPredictor.evaluate_ensemble">evaluate_ensemble</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Evaluates an ensemble of predictors, each on its own input.</p>
@@ -1524,7 +1524,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;evaluate_ensemble_dynamics&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;predictors&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;PolyPredictor&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_predictor&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.evaluate_ensemble_dynamics">evaluate_ensemble_dynamics</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="evaluate_ensemble_dynamics(predictors: PolyPredictor, inputs: Float[Array, &#x27; n_lambda&#x27;]) -&gt; Float[Array, &#x27; n_predictor&#x27;] (jaxnrsur.PolyPredictor.evaluate_ensemble_dynamics)" href="./#jaxnrsur.PolyPredictor.evaluate_ensemble_dynamics">evaluate_ensemble_dynamics</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Evaluates an ensemble of predictors on the same input.</p>
@@ -1532,7 +1532,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;make_polypredictor_ensemble&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;coefs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_predictor n_sum&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bfOrders&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_predictor n_sum n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.make_polypredictor_ensemble">make_polypredictor_ensemble</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="make_polypredictor_ensemble(coefs: Float[Array, &#x27; n_predictor n_sum&#x27;], bfOrders: Float[Array, &#x27; n_predictor n_sum n_lambda&#x27;], n_max: int) (jaxnrsur.PolyPredictor.make_polypredictor_ensemble)" href="./#jaxnrsur.PolyPredictor.make_polypredictor_ensemble">make_polypredictor_ensemble</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Creates an ensemble of PolyPredictor objects.</p>
@@ -1540,7 +1540,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;stable_power&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;y&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27;... n&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27;... n&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.stable_power">stable_power</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="stable_power(x: Float[Array, &#x27; n&#x27;], y: Float[Array, &#x27;... n&#x27;]) -&gt; Float[Array, &#x27;... n&#x27;] (jaxnrsur.PolyPredictor.stable_power)" href="./#jaxnrsur.PolyPredictor.stable_power">stable_power</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Elementwise power with custom JVP for stability.</p>
@@ -1548,7 +1548,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;stable_power_jvp&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;primals&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;tangents&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.stable_power_jvp">stable_power_jvp</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="stable_power_jvp(primals, tangents) (jaxnrsur.PolyPredictor.stable_power_jvp)" href="./#jaxnrsur.PolyPredictor.stable_power_jvp">stable_power_jvp</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Custom JVP rule for stable_power to handle edge cases and differentiation.</p>
@@ -1656,7 +1656,7 @@
       </thead>
       <tbody>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;fm&quot;&gt;__call__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_lambda &#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; 1&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.PolyPredictor.__call__">__call__</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="__call__(X: Float[Array, &#x27; n_lambda &#x27;]) -&gt; Float[Array, &#x27; 1&#x27;] (jaxnrsur.PolyPredictor.PolyPredictor.__call__)" href="./#jaxnrsur.PolyPredictor.PolyPredictor.__call__">__call__</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Calls the predictor on input X.</p>
@@ -1664,7 +1664,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;fm&quot;&gt;__init__&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;coefs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_sum&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bfOrders&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_sum n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;n_max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.PolyPredictor.__init__">__init__</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="__init__(coefs: Float[Array, &#x27; n_sum&#x27;], bfOrders: Float[Array, &#x27; n_sum n_lambda&#x27;], n_max: int) (jaxnrsur.PolyPredictor.PolyPredictor.__init__)" href="./#jaxnrsur.PolyPredictor.PolyPredictor.__init__">__init__</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Initializes PolyPredictor with coefficients and basis function orders.</p>
@@ -1672,11 +1672,11 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;predict&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;inputs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;coefs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_sum&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;bfOrders&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_sum n_lambda&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;...&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;
+              <td><code><a class="autorefs autorefs-internal" title="predict(inputs: Float[Array, &#x27; n_lambda&#x27;], coefs: Float[Array, &#x27; n_sum&#x27;], bfOrders: Float[Array, &#x27; n_sum n_lambda&#x27;]) -&gt; Float[Array, ...]
 
-  &lt;span class=&quot;doc doc-labels&quot;&gt;
-      &lt;small class=&quot;doc doc-label doc-label-staticmethod&quot;&gt;&lt;code&gt;staticmethod&lt;/code&gt;&lt;/small&gt;
-  &lt;/span&gt;" href="./#jaxnrsur.PolyPredictor.PolyPredictor.predict">predict</a></code></td>
+  
+      staticmethod
+   (jaxnrsur.PolyPredictor.PolyPredictor.predict)" href="./#jaxnrsur.PolyPredictor.PolyPredictor.predict">predict</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Predicts output using polynomial basis functions.</p>
@@ -1684,7 +1684,7 @@
               </td>
             </tr>
             <tr class="doc-section-item">
-              <td><code><a class="autorefs autorefs-internal" title="&lt;code class=&quot;highlight language-python&quot;&gt;&lt;span class=&quot;n&quot;&gt;predict_at_index&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;X&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; n_lambda &#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;idx&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Int&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27;&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;-&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Float&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Array&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&#x27; 1&#x27;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;/code&gt;" href="./#jaxnrsur.PolyPredictor.PolyPredictor.predict_at_index">predict_at_index</a></code></td>
+              <td><code><a class="autorefs autorefs-internal" title="predict_at_index(X: Float[Array, &#x27; n_lambda &#x27;], idx: Int[Array, &#x27;&#x27;]) -&gt; Float[Array, &#x27; 1&#x27;] (jaxnrsur.PolyPredictor.PolyPredictor.predict_at_index)" href="./#jaxnrsur.PolyPredictor.PolyPredictor.predict_at_index">predict_at_index</a></code></td>
               <td>
                 <div class="doc-md-description">
                   <p>Predicts output at a specific index.</p>
@@ -2120,7 +2120,7 @@
                 <code>predictors</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" href="./#jaxnrsur.PolyPredictor.PolyPredictor">PolyPredictor</a></code>
+                  <code><a class="autorefs autorefs-internal" title="PolyPredictor (jaxnrsur.PolyPredictor.PolyPredictor)" href="./#jaxnrsur.PolyPredictor.PolyPredictor">PolyPredictor</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2208,7 +2208,7 @@
                 <code>predictors</code>
             </td>
             <td>
-                  <code><a class="autorefs autorefs-internal" href="./#jaxnrsur.PolyPredictor.PolyPredictor">PolyPredictor</a></code>
+                  <code><a class="autorefs autorefs-internal" title="PolyPredictor (jaxnrsur.PolyPredictor.PolyPredictor)" href="./#jaxnrsur.PolyPredictor.PolyPredictor">PolyPredictor</a></code>
             </td>
             <td>
               <div class="doc-md-description">
@@ -2546,7 +2546,7 @@
       <script id="__config" type="application/json">{"annotate":null,"base":"../../..","features":["content.code.copy","navigation.instant","navigation.tabs","navigation.top","toc.follow","header.autohide"],"redirect":null,"search":"../../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"default":"stable","provider":"mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.8dcc8e9c.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.c04ba553.min.js"></script>
       
         <script src="../../../javascripts/mathjax.js"></script>
       
