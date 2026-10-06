@@ -4,31 +4,7 @@
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/</loc>
       </url>
       <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/installation/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/quickstart/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/getting_started/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/gradient_optimization/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/frequency_domain/</loc>
-      </url>
-      <url>
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/FAQ/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/citing/</loc>
-      </url>
-      <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/contributing/</loc>
       </url>
       <url>
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/DataLoader/</loc>
@@ -52,12 +28,36 @@
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/PolyPredictor/</loc>
       </url>
       <url>
-        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/special_function/</loc>
-      </url>
-      <url>
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/Spline/</loc>
       </url>
       <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/special_function/</loc>
+      </url>
+      <url>
         <loc>https://gw-jax-team.github.io/JAXNRSur/latest/api/jaxnrsur/typing/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/citing/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/contributing/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/installation/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/quickstart/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/frequency_domain/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/getting_started/</loc>
+      </url>
+      <url>
+        <loc>https://gw-jax-team.github.io/JAXNRSur/latest/tutorials/gradient_optimization/</loc>
       </url>
 </urlset>
