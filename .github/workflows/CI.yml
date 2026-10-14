@@ -46,6 +46,36 @@ jobs:
         run: sudo apt-get install -y libgsl-dev
       - name: Install dependencies
         run: uv sync --group test ${{ matrix.python-version == '3.12' && '--group cross-validation' || '' }}
+      - name: Restore surrogate data
+        id: surrogate-data
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/.JAXNRSur
+          key: surrogate-data-${{ hashFiles('.github/surrogate-data.md5') }}
+      - name: Download surrogate data
+        if: steps.surrogate-data.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.cache/.JAXNRSur
+          cd ~/.cache/.JAXNRSur
+          while read -r _ name; do
+            curl --fail --silent --show-error --location \
+              --retry 5 --retry-all-errors --connect-timeout 30 \
+              --speed-limit 1000 --speed-time 60 --output "$name" \
+              "https://zenodo.org/records/3348115/files/$name?download=1"
+          done < "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
+          md5sum --check "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
+      - name: Save surrogate data
+        if: steps.surrogate-data.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/.JAXNRSur
+          key: ${{ steps.surrogate-data.outputs.cache-primary-key }}
+      - name: Give gwsurrogate the surrogate data
+        if: matrix.python-version == '3.12'
+        run: |
+          dir=$(uv run python -c "from gwsurrogate.catalog import download_path; print(download_path())")
+          mkdir -p "$dir"
+          cp ~/.cache/.JAXNRSur/*.h5 "$dir"
       - name: Run tests
         run: |
           if [[ "${{ matrix.python-version }}" == "3.12" ]]; then
