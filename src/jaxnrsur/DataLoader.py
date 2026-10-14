@@ -38,16 +38,18 @@ def download_from_zenodo(url: str, local_filename: str) -> bool:
         bool: True if the download was successful, False otherwise.
     """
     # Send the HTTP request to the URL
-    response = requests.get(url, stream=True)
+    response = requests.get(url, stream=True, timeout=60)
 
     # Check if the request was successful
     if response.status_code == 200:
-        # Open a local file for writing the binary content
-        with open(local_filename, "wb") as f:
+        # Write to a temporary file and rename it when complete
+        part_filename = local_filename + ".part"
+        with open(part_filename, "wb") as f:
             # Write the content in chunks to avoid memory overload
             for chunk in response.iter_content(chunk_size=8192):
                 if chunk:  # Filter out keep-alive chunks
                     f.write(chunk)
+        os.replace(part_filename, local_filename)
         print(f"File downloaded successfully and saved as {local_filename}")
         return True
     else:
@@ -64,8 +66,8 @@ def _cache_dir() -> str:
 def load_data(url: str, local_filename: str) -> h5py.File:
     """Load an HDF5 file from cache or download it from Zenodo if not present.
 
-    The file is cached under ``$XDG_CACHE_HOME/jaxnrsur`` (falls back to
-    ``~/.cache/jaxnrsur`` when the env variable is not set).
+    The file is cached under ``$XDG_CACHE_HOME/.JAXNRSur`` (falls back to
+    ``~/.cache/.JAXNRSur`` when the env variable is not set).
 
     Args:
         url (str): The URL to download the file from if not cached.
