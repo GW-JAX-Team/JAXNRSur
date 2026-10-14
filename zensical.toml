@@ -21,6 +21,18 @@ nav = [
         {"Gradient Optimization" = "tutorials/gradient_optimization.ipynb"},
         {"Frequency Domain" = "tutorials/frequency_domain.ipynb"},
     ]},
+    {"Guides" = [
+        "guides/index.md",
+    ]},
+    {"How-to" = [
+        "how-to/index.md",
+    ]},
+    {"Technical Notes" = [
+        "notes/index.md",
+    ]},
+    {"Development" = [
+        "dev/index.md",
+    ]},
     {"FAQ" = "FAQ.md"},
     {"Citing JAXNRSur" = "citing.md"},
     {"Contributing" = "contributing.md"},

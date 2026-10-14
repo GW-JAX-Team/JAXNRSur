@@ -14,7 +14,11 @@ By reimplementing the surrogate pipeline in JAX, it delivers NR-faithful time-do
 
 - **[Installation](installation.md)** — How to install JAXNRSur
 - **[Quick Start](quickstart.md)** — A basic example to get started
-- **[Tutorials](tutorials/index.md)** — Step-by-step guides and worked examples
+- **[Tutorials](tutorials/index.md)** — Step-by-step worked examples
+- **[Guides](guides/index.md)** — One part of JAXNRSur at a time, shown in use
+- **[How-to](how-to/index.md)** — Short recipes for specific tasks
+- **[Technical Notes](notes/index.md)** — Conventions and design details behind the results
+- **[Development](dev/index.md)** — Internals for contributors
 - **[FAQ](FAQ.md)** — Answers to common questions
 - **[Citing JAXNRSur](citing.md)** — How to cite JAXNRSur and the project's origins
 - **[Contributing to JAXNRSur](contributing.md)** — How to contribute to JAXNRSur
