@@ -47,7 +47,6 @@ test = [
     "pre-commit>=4.2.0",
     "pytest>=8.4.0",
     "pytest-cov>=6.0.0",
-    "pyright>=1.1.402",
     "ruff>=0.12.0",
 ]
 cross-validation = [
@@ -86,10 +85,6 @@ markers = [
     "cross_validation: compares JAXNRSur waveform output against gwsurrogate (run explicitly via `pytest tests/cross_validation`)",
 ]
 
-[tool.pyright]
-include = ["src"]
-reportUnnecessaryTypeIgnoreComment = "error"
-
 [tool.ruff.lint]
 ignore = [
     "F722",
@@ -100,6 +95,10 @@ ignore = [
 
 [tool.ty.src]
 include = ["src"]
+
+[tool.ty.rules]
+possibly-unresolved-reference = "error"
+unused-ignore-comment = "error"
 
 [tool.coverage.report]
 exclude_also = [
