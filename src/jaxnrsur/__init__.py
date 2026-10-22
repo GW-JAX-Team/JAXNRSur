@@ -4,7 +4,7 @@ __version__ = importlib.metadata.version("JAXNRSur")
 
 import logging
 from abc import abstractmethod
-from typing import Generic, Optional, TypeVar
+from typing import Optional
 
 import equinox as eqx
 import jax.numpy as jnp
@@ -14,8 +14,6 @@ from jaxnrsur.DataLoader import DataLoader
 from jaxnrsur.typing import FloatLike
 
 logger = logging.getLogger(__name__)
-
-DataLoaderT = TypeVar("DataLoaderT", bound=DataLoader)
 
 # geometric units to SI
 GMSUN_SI = 1.32712442099000e20
@@ -27,7 +25,7 @@ PC_SI = 3.08567758149136720000e16
 MPC_SI = 1e6 * PC_SI
 
 
-class WaveformModel(eqx.Module, Generic[DataLoaderT]):
+class WaveformModel[DataLoaderT: DataLoader](eqx.Module):
     data: DataLoaderT
 
     @abstractmethod
