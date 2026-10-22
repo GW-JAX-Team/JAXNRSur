@@ -3,7 +3,7 @@ name = "JAXNRSur"
 dynamic = ["version"]
 description = "A JAX-based package for differentiable numerical relativity surrogate waveform generation"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 authors = [
     {name = "Kaze W. K. Wong", email = "kazewong.physics@gmail.com"},
     {name = "Max Isi"},
@@ -17,9 +17,9 @@ maintainers = [
 license = {file = "LICENSE"}
 keywords = ["gravitational-wave", "numerical relativity", "autodiff", "jax"]
 classifiers = [
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: MIT License",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
