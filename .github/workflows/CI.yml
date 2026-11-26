@@ -29,7 +29,53 @@ jobs:
       - name: Run pre-commit
         run: uv run pre-commit run --all-files
 
+  surrogate-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Restore surrogate data cache
+        id: cache
+        uses: actions/cache/restore@v6
+        with:
+          path: surrogate-data
+          key: surrogate-data-${{ hashFiles('.github/surrogate-data.md5') }}
+          restore-keys: surrogate-data-
+      - name: Verify restored surrogate data
+        id: verify
+        continue-on-error: true
+        run: |
+          cd surrogate-data
+          md5sum --check --quiet "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
+      - name: Download surrogate data from Zenodo
+        if: steps.verify.outcome != 'success'
+        run: |
+          mkdir -p surrogate-data
+          cd surrogate-data
+          while read -r _ name; do
+            curl --fail --silent --show-error --location \
+              --retry 10 --retry-all-errors --retry-delay 30 --retry-max-time 3600 \
+              --connect-timeout 30 --speed-limit 1000 --speed-time 120 --max-time 1800 \
+              --output "$name.part" \
+              "https://zenodo.org/records/3348115/files/$name?download=1"
+            mv "$name.part" "$name"
+          done < "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
+          md5sum --check "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
+      - name: Save surrogate data cache
+        if: steps.verify.outcome != 'success'
+        uses: actions/cache/save@v6
+        with:
+          path: surrogate-data
+          key: ${{ steps.cache.outputs.cache-primary-key }}
+      - name: Upload surrogate data artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: surrogate-data
+          path: surrogate-data/*.h5
+          if-no-files-found: error
+          retention-days: 7
+
   test:
+    needs: [surrogate-data]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -44,36 +90,31 @@ jobs:
         run: sudo apt-get install -y libgsl-dev
       - name: Install dependencies
         run: uv sync --group test ${{ matrix.python-version == '3.13' && '--group cross-validation' || '' }}
-      - name: Restore surrogate data
-        id: surrogate-data
-        uses: actions/cache/restore@v6
+      - name: Fetch surrogate data
+        uses: actions/download-artifact@v6
         with:
-          path: ~/.cache/.JAXNRSur
-          key: surrogate-data-${{ hashFiles('.github/surrogate-data.md5') }}
-      - name: Download surrogate data
-        if: steps.surrogate-data.outputs.cache-hit != 'true'
+          name: surrogate-data
+          path: surrogate-data
+      - name: Install and verify surrogate data
         run: |
           mkdir -p ~/.cache/.JAXNRSur
+          cp surrogate-data/*.h5 ~/.cache/.JAXNRSur/
           cd ~/.cache/.JAXNRSur
-          while read -r _ name; do
-            curl --fail --silent --show-error --location \
-              --retry 5 --retry-all-errors --connect-timeout 30 \
-              --speed-limit 1000 --speed-time 60 --output "$name" \
-              "https://zenodo.org/records/3348115/files/$name?download=1"
-          done < "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
-          md5sum --check "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
-      - name: Save surrogate data
-        if: steps.surrogate-data.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: ~/.cache/.JAXNRSur
-          key: ${{ steps.surrogate-data.outputs.cache-primary-key }}
+          md5sum --check --quiet "$GITHUB_WORKSPACE/.github/surrogate-data.md5"
       - name: Give gwsurrogate the surrogate data
         if: matrix.python-version == '3.13'
         run: |
-          dir=$(uv run python -c "from gwsurrogate.catalog import download_path; print(download_path())")
-          mkdir -p "$dir"
-          cp ~/.cache/.JAXNRSur/*.h5 "$dir"
+          uv run python - <<'PY'
+          import shutil
+          from pathlib import Path
+          from gwsurrogate.catalog import download_path
+          src = Path.home() / ".cache" / ".JAXNRSur"
+          dst = Path(download_path())
+          dst.mkdir(parents=True, exist_ok=True)
+          for f in sorted(src.glob("*.h5")):
+              shutil.copy2(f, dst / f.name)
+              print(f"copied {f.name} -> {dst}")
+          PY
       - name: Run tests
         run: |
           if [[ "${{ matrix.python-version }}" == "3.13" ]]; then
